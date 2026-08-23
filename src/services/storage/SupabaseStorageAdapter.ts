@@ -93,7 +93,9 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         balance: parseFloat(a.balance || 0),
         openingBalance: parseFloat(a.balance || 0),
         openingBalanceDate: a.created_at,
-        bankName: a.bank_name || undefined
+        bankName: a.bank_name || undefined,
+        color: a.color || '#10b981',
+        icon: a.icon || 'wallet'
       })),
 
       transactions: (transactions || []).map(t => ({
@@ -116,16 +118,19 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       budgets: (budgets || []).map(b => ({
         categoryId: b.id,
         limit: parseFloat(b.total_income || 0),
-        period: 'monthly' as const
+        period: 'monthly'
       })),
 
       bills: (bills || []).map(b => ({
         id: b.id,
         name: b.name,
+        provider: b.provider || b.name,
         amount: parseFloat(b.amount || 0),
-        dueDate: String(b.due_day),
-        categoryId: b.category,
-        isPaidThisMonth: b.is_paid
+        dueDate: typeof b.due_day === 'number' ? b.due_day : parseInt(b.due_day || '1', 10),
+        categoryId: b.category || 'general',
+        accountId: b.account_id || '',
+        isPaidThisMonth: Boolean(b.is_paid),
+        icon: b.icon || 'receipt'
       })),
 
       goals: (goals || []).map(g => ({
@@ -134,6 +139,8 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         targetAmount: parseFloat(g.target_amount || 0),
         currentAmount: parseFloat(g.current_amount || 0),
         targetDate: g.target_date,
+        categoryIcon: g.category_icon || 'target',
+        color: g.color || '#3b82f6',
         isCompleted: parseFloat(g.current_amount || 0) >= parseFloat(g.target_amount || 1)
       })),
 
