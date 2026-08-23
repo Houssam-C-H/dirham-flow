@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency } from '../../utils/formatters';
-import { TrendingUp, TrendingDown, Plus, Trash2, X, RefreshCw, Landmark } from 'lucide-react';
+import { TrendingUp, TrendingDown, Plus, Trash2, X, RefreshCw, Landmark, Edit2, Check } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { fetchLiveCasablancaQuotes, type CasablancaStockQuote } from '../../services/api/casablancaBourseApi';
 
@@ -13,9 +13,11 @@ export interface PortfolioPosition {
   quantity: number;
   averageBuyPrice: number;
   sector?: string;
+  customMarketPrice?: number;
 }
 
 const LOCAL_PORTFOLIO_KEY = 'dirhamflow_portfolio_positions_v1';
+const LOCAL_CUSTOM_PRICES_KEY = 'dirhamflow_custom_stock_prices_v1';
 
 export const CasablancaPortfolioView: React.FC = () => {
   const { currencyDisplay, state } = useFinance();
@@ -24,13 +26,33 @@ export const CasablancaPortfolioView: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>('');
 
+  // Inline Price Editing State
+  const [editingPriceSymbol, setEditingPriceSymbol] = useState<string | null>(null);
+  const [tempPriceValue, setTempPriceValue] = useState<string>('');
+
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('IAM');
   const [quantityInput, setQuantityInput] = useState<string>('50');
-  const [buyPriceInput, setBuyPriceInput] = useState<string>('96.80');
+  const [buyPriceInput, setBuyPriceInput] = useState<string>('93.50');
 
   const isRtl = state.preferences.language === 'ar_darija';
+
+  // Load custom stored market price overrides
+  const getCustomPriceOverrides = (): Record<string, number> => {
+    try {
+      const raw = localStorage.getItem(LOCAL_CUSTOM_PRICES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const saveCustomPriceOverride = (symbol: string, price: number) => {
+    const existing = getCustomPriceOverrides();
+    const updated = { ...existing, [symbol]: price };
+    localStorage.setItem(LOCAL_CUSTOM_PRICES_KEY, JSON.stringify(updated));
+  };
 
   // Fetch Live Quotes & Portfolio Positions
   const refreshMarketFeedAndPositions = async () => {
@@ -38,7 +60,17 @@ export const CasablancaPortfolioView: React.FC = () => {
 
     // 1. Fetch live stock quotes from API endpoint
     const liveQuotes = await fetchLiveCasablancaQuotes();
-    setMarketFeed(liveQuotes);
+    const customOverrides = getCustomPriceOverrides();
+
+    // Apply any user custom price overrides on top of the live feed
+    const mergedFeed = { ...liveQuotes };
+    Object.keys(customOverrides).forEach(sym => {
+      if (mergedFeed[sym]) {
+        mergedFeed[sym] = { ...mergedFeed[sym], price: customOverrides[sym] };
+      }
+    });
+
+    setMarketFeed(mergedFeed);
     setLastRefreshedAt(new Date().toLocaleTimeString());
 
     // 2. Load portfolio positions from Supabase or LocalStorage
@@ -116,6 +148,21 @@ export const CasablancaPortfolioView: React.FC = () => {
     }
   };
 
+  const handleSaveInlinePrice = (symbol: string) => {
+    const num = parseFloat(tempPriceValue);
+    if (!isNaN(num) && num > 0) {
+      saveCustomPriceOverride(symbol, num);
+      setMarketFeed(prev => ({
+        ...prev,
+        [symbol]: {
+          ...prev[symbol],
+          price: num
+        }
+      }));
+    }
+    setEditingPriceSymbol(null);
+  };
+
   const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(quantityInput);
@@ -175,7 +222,7 @@ export const CasablancaPortfolioView: React.FC = () => {
     }
   };
 
-  // Calculations using live marketFeed
+  // Calculations using live/custom marketFeed
   const portfolioMetrics = positions.map(pos => {
     const currentPrice = marketFeed[pos.symbol]?.price || pos.averageBuyPrice;
     const currentMarketValue = pos.quantity * currentPrice;
@@ -205,7 +252,7 @@ export const CasablancaPortfolioView: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span className="badge badge-success">🇲🇦 Casablanca Bourse API (BVC)</span>
+              <span className="badge badge-success">🇲🇦 Casablanca Bourse Feed (BVC)</span>
               {lastRefreshedAt && (
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>• Mis à jour: {lastRefreshedAt}</span>
               )}
@@ -304,8 +351,34 @@ export const CasablancaPortfolioView: React.FC = () => {
                       <bdi>{formatCurrency(pos.averageBuyPrice, currencyDisplay)}</bdi>
                     </td>
 
+                    {/* Editable Market Price Cell */}
                     <td style={{ padding: '0.85rem 0.75rem', fontWeight: 700, color: '#10B981' }}>
-                      <bdi>{formatCurrency(pos.currentPrice, currencyDisplay)}</bdi>
+                      {editingPriceSymbol === pos.symbol ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <input
+                            type="number"
+                            step="0.1"
+                            className="form-input"
+                            style={{ width: '90px', padding: '2px 6px', fontSize: '0.85rem', fontWeight: 700 }}
+                            value={tempPriceValue}
+                            onChange={e => setTempPriceValue(e.target.value)}
+                          />
+                          <button className="btn btn-primary btn-sm" style={{ padding: '2px 6px' }} onClick={() => handleSaveInlinePrice(pos.symbol)}>
+                            <Check size={12} />
+                          </button>
+                        </span>
+                      ) : (
+                        <span
+                          style={{ cursor: 'pointer', background: 'rgba(16, 185, 129, 0.1)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                          onClick={() => {
+                            setEditingPriceSymbol(pos.symbol);
+                            setTempPriceValue(pos.currentPrice.toString());
+                          }}
+                          title="Cliquer pour ajuster le cours en direct"
+                        >
+                          <bdi>{formatCurrency(pos.currentPrice, currencyDisplay)}</bdi> <Edit2 size={11} style={{ opacity: 0.8, marginLeft: '4px' }} />
+                        </span>
+                      )}
                     </td>
 
                     <td style={{ padding: '0.85rem 0.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
