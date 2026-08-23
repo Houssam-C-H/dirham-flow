@@ -47,7 +47,7 @@ export const CasablancaPortfolioView: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('IAM');
   const [quantityInput, setQuantityInput] = useState<string>('50');
-  const [buyPriceInput, setBuyPriceInput] = useState<string>('92.50');
+  const [buyPriceInput, setBuyPriceInput] = useState<string>('96.80');
 
   const isRtl = state.preferences.language === 'ar_darija';
 
@@ -87,13 +87,9 @@ export const CasablancaPortfolioView: React.FC = () => {
       if (raw) {
         setPositions(JSON.parse(raw));
       } else {
-        // Initial Demo Portfolio Position
-        const initialDemo: PortfolioPosition[] = [
-          { id: 'pos_iam', symbol: 'IAM', companyName: 'Maroc Telecom', quantity: 100, averageBuyPrice: 92.00, sector: 'Télécommunications' },
-          { id: 'pos_atw', symbol: 'ATW', companyName: 'Attijariwafa Bank', quantity: 20, averageBuyPrice: 495.00, sector: 'Banques' }
-        ];
-        setPositions(initialDemo);
-        localStorage.setItem(LOCAL_PORTFOLIO_KEY, JSON.stringify(initialDemo));
+        // Default clean state (no dummy demo positions)
+        setPositions([]);
+        localStorage.setItem(LOCAL_PORTFOLIO_KEY, JSON.stringify([]));
       }
     } catch (e) {
       setPositions([]);
