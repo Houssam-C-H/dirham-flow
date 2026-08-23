@@ -40,7 +40,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       .maybeSingle();
 
     if (profileError) {
-      throw new Error(`Failed to load user profile from Supabase: ${profileError.message}`);
+      console.warn('Profile fetch warning:', profileError.message);
     }
 
     // 2. Fetch Accounts
@@ -50,7 +50,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       .eq('user_id', user.id);
 
     if (accountsError) {
-      throw new Error(`Failed to load financial accounts: ${accountsError.message}`);
+      console.warn('Accounts fetch warning:', accountsError.message);
     }
 
     // 3. Fetch Transactions
@@ -61,7 +61,7 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       .order('date', { ascending: false });
 
     if (transError) {
-      throw new Error(`Failed to load transactions: ${transError.message}`);
+      console.warn('Transactions fetch warning:', transError.message);
     }
 
     // 4. Fetch Budgets
@@ -95,17 +95,19 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         email: userEmail,
         language: (profile?.language as any) || localPrefs.user?.language || 'fr'
       },
-      accounts: (accounts || []).map(a => ({
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        balance: parseFloat(a.balance || 0),
-        openingBalance: parseFloat(a.balance || 0),
-        openingBalanceDate: a.created_at,
-        bankName: a.bank_name || undefined,
-        color: a.color || '#10b981',
-        icon: a.icon || 'wallet'
-      })),
+      accounts: (accounts && accounts.length > 0)
+        ? accounts.map(a => ({
+            id: a.id,
+            name: a.name,
+            type: a.type,
+            balance: parseFloat(a.balance || 0),
+            openingBalance: parseFloat(a.balance || 0),
+            openingBalanceDate: a.created_at,
+            bankName: a.bank_name || undefined,
+            color: a.color || '#10b981',
+            icon: a.icon || 'wallet'
+          }))
+        : localPrefs.accounts,
 
       transactions: (transactions || []).map(t => ({
         id: t.id,
@@ -171,15 +173,66 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Save profile state including onboarding completion
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      full_name: state.user?.fullName,
-      language: state.user?.language || 'fr',
-      currency: state.preferences?.currencyDisplay || 'MAD',
-      onboarding_completed: state.onboardingCompleted,
-      updated_at: new Date().toISOString()
-    });
+    try {
+      // 1. Save profile state including onboarding completion
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: state.user?.fullName,
+        language: state.user?.language || 'fr',
+        currency: state.preferences?.currencyDisplay || 'MAD',
+        onboarding_completed: state.onboardingCompleted,
+        updated_at: new Date().toISOString()
+      });
+
+      // 2. Persist Accounts to Supabase
+      if (state.accounts && state.accounts.length > 0) {
+        const accountsToUpsert = state.accounts.map(acc => ({
+          id: acc.id.startsWith('acc_') ? undefined : acc.id,
+          user_id: user.id,
+          name: acc.name,
+          type: acc.type,
+          balance: acc.balance,
+          currency: 'MAD',
+          bank_name: acc.bankName || acc.name,
+          updated_at: new Date().toISOString()
+        }));
+
+        await supabase.from('accounts').upsert(accountsToUpsert, { onConflict: 'id' });
+      }
+
+      // 3. Persist Bills to Supabase
+      if (state.bills && state.bills.length > 0) {
+        const billsToUpsert = state.bills.map(b => ({
+          id: b.id.startsWith('bill_') ? undefined : b.id,
+          user_id: user.id,
+          name: b.name,
+          amount: b.amount,
+          due_day: typeof b.dueDate === 'number' ? b.dueDate : 1,
+          is_paid: b.isPaidThisMonth,
+          category: b.categoryId || 'Fixe'
+        }));
+
+        await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'id' });
+      }
+
+      // 4. Persist Transactions to Supabase
+      if (state.transactions && state.transactions.length > 0) {
+        const txsToUpsert = state.transactions.map(t => ({
+          id: t.id.startsWith('tx_') ? undefined : t.id,
+          user_id: user.id,
+          account_id: t.accountId.startsWith('acc_') ? null : t.accountId,
+          category: t.categoryId || 'general',
+          amount: t.amount,
+          type: t.type,
+          description: t.description,
+          date: t.transactionDate || new Date().toISOString().split('T')[0]
+        }));
+
+        await supabase.from('transactions').upsert(txsToUpsert, { onConflict: 'id' });
+      }
+    } catch (err) {
+      console.error('Error persisting state to Supabase:', err);
+    }
   }
 
   async resetToDemoData(): Promise<AppStateData> {
