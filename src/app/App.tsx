@@ -75,20 +75,11 @@ const AppContent: React.FC = () => {
 
     if (isNewUser) {
       setShowWizard(true);
-      saveAndSetState({
-        ...state,
-        user,
-        onboardingCompleted: false
-      });
     } else {
       // Reload actual user profile & database state from Supabase
       const freshData = await reloadInitialData();
       const isCompleted = Boolean(freshData?.onboardingCompleted || (freshData?.accounts && freshData.accounts.length > 0));
-      if (isCompleted) {
-        setShowWizard(false);
-      } else {
-        setShowWizard(true);
-      }
+      setShowWizard(!isCompleted);
     }
   };
 
@@ -106,10 +97,6 @@ const AppContent: React.FC = () => {
         userData={authenticatedUser}
         onCompleted={() => {
           setShowWizard(false);
-          saveAndSetState({
-            ...state,
-            onboardingCompleted: true
-          });
         }}
       />
     );
