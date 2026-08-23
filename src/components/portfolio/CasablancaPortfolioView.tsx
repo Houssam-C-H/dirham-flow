@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency } from '../../utils/formatters';
-import { TrendingUp, TrendingDown, Plus, Trash2, X, RefreshCw, Landmark, Edit2, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, Plus, Trash2, X, RefreshCw, Landmark, Edit2, Check, Search, CheckCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { fetchLiveCasablancaQuotes, type CasablancaStockQuote } from '../../services/api/casablancaBourseApi';
 
@@ -30,11 +30,12 @@ export const CasablancaPortfolioView: React.FC = () => {
   const [editingPriceSymbol, setEditingPriceSymbol] = useState<string | null>(null);
   const [tempPriceValue, setTempPriceValue] = useState<string>('');
 
-  // Modal State
+  // Modal & Search State
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [selectedSymbol, setSelectedSymbol] = useState<string>('IAM');
+  const [stockSearchQuery, setStockSearchQuery] = useState<string>('');
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('CIH');
   const [quantityInput, setQuantityInput] = useState<string>('50');
-  const [buyPriceInput, setBuyPriceInput] = useState<string>('93.50');
+  const [buyPriceInput, setBuyPriceInput] = useState<string>('340.00');
 
   const isRtl = state.preferences.language === 'ar_darija';
 
@@ -163,6 +164,11 @@ export const CasablancaPortfolioView: React.FC = () => {
     setEditingPriceSymbol(null);
   };
 
+  const handleSelectStock = (stock: CasablancaStockQuote) => {
+    setSelectedSymbol(stock.symbol);
+    setBuyPriceInput(stock.price.toString());
+  };
+
   const handleAddPosition = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseFloat(quantityInput);
@@ -222,6 +228,18 @@ export const CasablancaPortfolioView: React.FC = () => {
     }
   };
 
+  // Filter stocks by search query
+  const allStocksList = Object.values(marketFeed);
+  const filteredStocks = allStocksList.filter(stock => {
+    const q = stockSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      stock.symbol.toLowerCase().includes(q) ||
+      stock.companyName.toLowerCase().includes(q) ||
+      stock.sector.toLowerCase().includes(q)
+    );
+  });
+
   // Calculations using live/custom marketFeed
   const portfolioMetrics = positions.map(pos => {
     const currentPrice = marketFeed[pos.symbol]?.price || pos.averageBuyPrice;
@@ -245,6 +263,8 @@ export const CasablancaPortfolioView: React.FC = () => {
   const totalUnrealizedGainLoss = totalPortfolioValue - totalInvestedAmount;
   const totalGainLossPercent = totalInvestedAmount > 0 ? (totalUnrealizedGainLoss / totalInvestedAmount) * 100 : 0;
 
+  const selectedStockObj = marketFeed[selectedSymbol];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header Banner */}
@@ -266,7 +286,14 @@ export const CasablancaPortfolioView: React.FC = () => {
             <button className="btn btn-secondary btn-sm" onClick={refreshMarketFeedAndPositions} title="Actualiser le cours du marché">
               <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} /> Actualiser
             </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)} style={{ fontWeight: 700 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setIsAddModalOpen(true);
+                setStockSearchQuery('');
+              }}
+              style={{ fontWeight: 700, padding: '0.65rem 1.1rem' }}
+            >
               <Plus size={16} /> + Nouvelle Position
             </button>
           </div>
@@ -319,7 +346,7 @@ export const CasablancaPortfolioView: React.FC = () => {
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📊</div>
             <p style={{ fontWeight: 600, fontSize: '1rem' }}>Aucune position d'action enregistrée.</p>
-            <p style={{ fontSize: '0.85rem' }}>Cliquez sur "+ Nouvelle Position" pour ajouter vos actions IAM, Attijariwafa, BCP, Addoha...</p>
+            <p style={{ fontSize: '0.85rem' }}>Cliquez sur "+ Nouvelle Position" pour rechercher vos actions CIH, Maroc Telecom, Attijariwafa, BCP, Addoha...</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -407,7 +434,7 @@ export const CasablancaPortfolioView: React.FC = () => {
         )}
       </div>
 
-      {/* Add Position Modal - Rendered via React Portal */}
+      {/* Expanded Searchable Add Position Modal Popup */}
       {isAddModalOpen && ReactDOM.createPortal(
         <div
           className="modal-backdrop"
@@ -418,7 +445,7 @@ export const CasablancaPortfolioView: React.FC = () => {
             left: 0,
             width: '100vw',
             height: '100vh',
-            background: 'rgba(0, 0, 0, 0.75)',
+            background: 'rgba(0, 0, 0, 0.82)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
@@ -431,77 +458,178 @@ export const CasablancaPortfolioView: React.FC = () => {
             className="modal-content"
             onClick={e => e.stopPropagation()}
             style={{
-              maxWidth: '420px',
+              maxWidth: '680px',
               width: '100%',
+              maxHeight: '88vh',
+              display: 'flex',
+              flexDirection: 'column',
               background: '#0F172A',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: '20px',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '24px',
               padding: '2rem',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)'
             }}
           >
+            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>+ Nouvelle Position Actions BVC</h3>
-              <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 800 }}>➕ Ajouter des Actions à votre Portefeuille</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Recherchez parmi les 40+ sociétés cotées à la Bourse de Casablanca (BVC)
+                </p>
+              </div>
+              <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddPosition}>
-              <div className="form-group">
-                <label className="form-label">Sélectionner l'Action (Bourse de Casablanca)</label>
-                <select
-                  className="form-select"
-                  style={{ background: '#0F172A', color: '#F8FAFC', fontWeight: 700 }}
-                  value={selectedSymbol}
-                  onChange={e => {
-                    const sym = e.target.value;
-                    setSelectedSymbol(sym);
-                    if (marketFeed[sym]) {
-                      setBuyPriceInput(marketFeed[sym].price.toString());
-                    }
-                  }}
-                >
-                  {Object.values(marketFeed).map(stock => (
-                    <option key={stock.symbol} value={stock.symbol} style={{ background: '#0F172A', color: '#F8FAFC' }}>
-                      {stock.symbol} — {stock.companyName} ({stock.price} DH)
-                    </option>
-                  ))}
-                </select>
+            <form onSubmit={handleAddPosition} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', overflow: 'hidden' }}>
+              {/* Search Bar Input */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>🔍 Rechercher une Action / Entreprise</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
+                  <input
+                    type="text"
+                    placeholder="Tapez CIH, Attijariwafa, Maroc Telecom, Addoha, TGCC, BCP..."
+                    className="form-input"
+                    style={{ paddingLeft: '2.8rem', fontSize: '0.95rem', fontWeight: 600, background: 'rgba(255,255,255,0.04)', borderRadius: '12px' }}
+                    value={stockSearchQuery}
+                    onChange={e => setStockSearchQuery(e.target.value)}
+                  />
+                  {stockSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setStockSearchQuery('')}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Nombre d'actions détenues</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="50"
-                  className="form-input"
-                  style={{ fontWeight: 800, fontSize: '1.1rem' }}
-                  value={quantityInput}
-                  onChange={e => setQuantityInput(e.target.value)}
-                />
+              {/* Scrollable Stocks Grid */}
+              <div style={{
+                maxHeight: '230px',
+                overflowY: 'auto',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '0.75rem',
+                paddingRight: '4px'
+              }}>
+                {filteredStocks.map(stock => {
+                  const isSelected = selectedSymbol === stock.symbol;
+                  return (
+                    <div
+                      key={stock.symbol}
+                      onClick={() => handleSelectStock(stock)}
+                      style={{
+                        padding: '0.75rem 0.9rem',
+                        borderRadius: '14px',
+                        border: isSelected ? '2px solid #10B981' : '1px solid var(--border-color)',
+                        background: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isSelected ? '#10B981' : 'var(--text-main)' }}>
+                            {stock.symbol}
+                          </span>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.2 }}>
+                            {stock.companyName}
+                          </div>
+                        </div>
+                        {isSelected && <CheckCircle size={16} color="#10B981" />}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {stock.sector}
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#10B981' }}>
+                          {stock.price} DH
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredStocks.length === 0 && (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    Aucune action trouvée pour "{stockSearchQuery}"
+                  </div>
+                )}
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Prix d'Achat Moyen (DH / action)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="92.50 DH"
-                  className="form-input"
-                  style={{ fontWeight: 800, fontSize: '1.1rem' }}
-                  value={buyPriceInput}
-                  onChange={e => setBuyPriceInput(e.target.value)}
-                />
+              {/* Selected Stock Info Banner */}
+              {selectedStockObj && (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '14px',
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Action Sélectionnée</span>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)' }}>
+                      {selectedStockObj.symbol} — {selectedStockObj.companyName}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cours du marché</span>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#10B981' }}>
+                      {selectedStockObj.price} DH
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Inputs (Quantity & Average Buy Price) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Nombre d'actions détenues</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="50"
+                    className="form-input"
+                    style={{ fontWeight: 800, fontSize: '1.15rem' }}
+                    value={quantityInput}
+                    onChange={e => setQuantityInput(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>Prix d'Achat Moyen (DH / action)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="340.00 DH"
+                    className="form-input"
+                    style={{ fontWeight: 800, fontSize: '1.15rem' }}
+                    value={buyPriceInput}
+                    onChange={e => setBuyPriceInput(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              {/* Submit Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsAddModalOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, fontWeight: 700 }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1.5, fontWeight: 800, padding: '0.8rem' }}>
                   [ Ajouter au Portefeuille ]
                 </button>
               </div>
