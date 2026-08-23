@@ -2,16 +2,20 @@ import React, { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency } from '../../utils/formatters';
 import { formatDateFrench } from '../../utils/dates';
-import { Repeat, Plus, Search } from 'lucide-react';
+import { Repeat, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TransactionListProps {
   onOpenAddModal: () => void;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export const TransactionList: React.FC<TransactionListProps> = ({ onOpenAddModal }) => {
   const { state, currencyDisplay } = useFinance();
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const getAccountName = (accId: string) => {
     const acc = state.accounts.find(a => a.id === accId);
@@ -26,14 +30,19 @@ export const TransactionList: React.FC<TransactionListProps> = ({ onOpenAddModal
 
   const filtered = state.transactions.filter(tx => {
     if (filterType !== 'all' && tx.type !== filterType) return false;
+    if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchDesc = tx.description.toLowerCase().includes(term);
       const matchMerchant = tx.merchant?.toLowerCase().includes(term);
-      if (!matchDesc && !matchMerchant) return false;
+      const matchAmount = tx.amount.toString().includes(term);
+      if (!matchDesc && !matchMerchant && !matchAmount) return false;
     }
     return true;
   });
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+  const paginatedTransactions = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div className="glass-card">
@@ -52,25 +61,49 @@ export const TransactionList: React.FC<TransactionListProps> = ({ onOpenAddModal
             <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Rechercher Carrefour, Total..."
+              placeholder="Rechercher Marjane, Loyer..."
               className="form-input"
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '2.2rem', fontSize: '0.85rem', width: '210px' }}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ paddingLeft: '2.2rem', fontSize: '0.85rem', width: '200px' }}
             />
           </div>
 
-          {/* Filter Tabs */}
+          {/* Type Filter */}
           <select
             className="form-select"
             value={filterType}
-            onChange={e => setFilterType(e.target.value)}
+            onChange={e => {
+              setFilterType(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{ width: '130px', fontSize: '0.85rem' }}
           >
-            <option value="all">Tous</option>
+            <option value="all">Tous Types</option>
             <option value="expense">Dépenses</option>
             <option value="income">Revenus</option>
             <option value="transfer">Transferts</option>
+          </select>
+
+          {/* Category Filter */}
+          <select
+            className="form-select"
+            value={filterCategory}
+            onChange={e => {
+              setFilterCategory(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{ width: '160px', fontSize: '0.85rem' }}
+          >
+            <option value="all">Toutes Catégories</option>
+            {state.categories.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.icon} {c.name}
+              </option>
+            ))}
           </select>
 
           {/* Add Tx Button */}
@@ -82,12 +115,12 @@ export const TransactionList: React.FC<TransactionListProps> = ({ onOpenAddModal
 
       {/* Transaction Rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-        {filtered.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        {paginatedTransactions.length === 0 ? (
+          <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             Aucune transaction trouvée pour ces critères.
           </div>
         ) : (
-          filtered.map(tx => {
+          paginatedTransactions.map(tx => {
             const cat = getCategory(tx.categoryId);
             const accountName = getAccountName(tx.accountId);
             const isExpense = tx.type === 'expense';
@@ -161,6 +194,32 @@ export const TransactionList: React.FC<TransactionListProps> = ({ onOpenAddModal
           })
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+            Page {currentPage} sur {totalPages} ({filtered.length} transactions)
+          </span>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+            >
+              <ChevronLeft size={16} /> Précédent
+            </button>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+            >
+              Suivant <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

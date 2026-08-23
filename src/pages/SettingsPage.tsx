@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useFinance } from '../context/FinanceContext';
-import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle, Download, Trash2, ShieldAlert } from 'lucide-react';
+import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle, Download, Trash2, ShieldAlert, ShieldCheck, Tag, Plus } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import type { AppLanguage, CurrencyDisplay } from '../types/user';
+import type { CategoryGroup } from '../types/budget';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface SettingsPageProps {
@@ -12,7 +13,7 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLogout }) => {
-  const { state, saveAndSetState, language, setLanguage, currencyDisplay, setCurrencyDisplay } = useFinance();
+  const { state, saveAndSetState, language, setLanguage, currencyDisplay, setCurrencyDisplay, addCustomCategory } = useFinance();
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.fr;
 
@@ -31,6 +32,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState<string>('');
   const [passwordErrorMsg, setPasswordErrorMsg] = useState<string>('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState<boolean>(false);
+
+  // MFA 2FA Fields
+  const [mfaStatusMsg, setMfaStatusMsg] = useState<string>('');
+  const [isMfaEnrolling, setIsMfaEnrolling] = useState<boolean>(false);
+
+  // Custom Category Fields
+  const [catName, setCatName] = useState<string>('');
+  const [catDarija, setCatDarija] = useState<string>('');
+  const [catIcon, setCatIcon] = useState<string>('🏷️');
+  const [catGroup, setCatGroup] = useState<CategoryGroup>('daily');
+  const [catLimit, setCatLimit] = useState<number>(500);
+  const [catSuccessMsg, setCatSuccessMsg] = useState<string>('');
 
   // Delete Account Confirmation Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
@@ -117,6 +130,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
     }
   };
 
+  const handleEnrollMFA = async () => {
+    setIsMfaEnrolling(true);
+    setMfaStatusMsg('');
+
+    try {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.auth.mfa.enroll({
+          factorType: 'totp'
+        });
+
+        if (error) {
+          setMfaStatusMsg(`Erreur 2FA: ${error.message}`);
+        } else {
+          setMfaStatusMsg(`✓ Facteur 2FA généré avec succès! Scannez le QR Code ou entrez la clé: ${data.totp.secret}`);
+        }
+      } else {
+        setMfaStatusMsg('✓ La double authentification (MFA 2FA) sera disponible après la connexion Supabase.');
+      }
+    } catch (e: any) {
+      setMfaStatusMsg(`Erreur MFA: ${e?.message || 'Inconnue'}`);
+    } finally {
+      setIsMfaEnrolling(false);
+    }
+  };
+
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catName.trim()) return;
+
+    addCustomCategory(catName.trim(), catIcon.trim() || '🏷️', catGroup, catLimit, catDarija.trim() || undefined);
+    setCatSuccessMsg(`✓ Catégorie "${catName}" ajoutée avec succès!`);
+    setCatName('');
+    setCatDarija('');
+    setCatLimit(500);
+    setTimeout(() => setCatSuccessMsg(''), 3500);
+  };
+
   const handleExportDataJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -137,7 +187,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
       if (isSupabaseConfigured) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Delete database records
           await supabase.from('profiles').delete().eq('id', user.id);
           await supabase.from('accounts').delete().eq('user_id', user.id);
           await supabase.from('transactions').delete().eq('user_id', user.id);
@@ -245,6 +294,71 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </form>
       </div>
 
+      {/* Custom Categories Creator */}
+      <div className="glass-card">
+        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Tag size={18} color="#10B981" /> Catégories Personnalisées
+        </h3>
+
+        {catSuccessMsg && (
+          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600 }}>
+            {catSuccessMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleCreateCategory}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Nom de la catégorie (FR)</label>
+              <input
+                type="text"
+                required
+                placeholder="Ex: Abonnements Gym"
+                className="form-input"
+                value={catName}
+                onChange={e => setCatName(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Nom en Darija (Optionnel)</label>
+              <input
+                type="text"
+                placeholder="Ex: لاصال د السبور"
+                className="form-input"
+                value={catDarija}
+                onChange={e => setCatDarija(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Emoji / Icône</label>
+              <input
+                type="text"
+                required
+                placeholder="🏋️‍♂️"
+                className="form-input"
+                value={catIcon}
+                onChange={e => setCatIcon(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Groupe</label>
+              <select className="form-select" value={catGroup} onChange={e => setCatGroup(e.target.value as CategoryGroup)}>
+                <option value="daily">Quotidien (Daily)</option>
+                <option value="household">Foyer (Household)</option>
+                <option value="moroccan">Spécifique Marocain</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
+            <Plus size={15} /> Ajouter la Catégorie
+          </button>
+        </form>
+      </div>
+
       {/* Language & Currency Preferences */}
       <div className="glass-card">
         <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -281,10 +395,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </div>
       </div>
 
-      {/* Password Reset Section */}
+      {/* Password Reset & MFA 2FA Section */}
       <div className="glass-card">
         <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Key size={18} color="#F59E0B" /> Modification du Mot de Passe
+          <Key size={18} color="#F59E0B" /> Sécurité du Compte & Mot de Passe
         </h3>
 
         {passwordSuccessMsg && (
@@ -301,7 +415,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
           </div>
         )}
 
-        <form onSubmit={handleResetPassword}>
+        <form onSubmit={handleResetPassword} style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Nouveau mot de passe</label>
@@ -340,6 +454,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
             {isUpdatingPassword ? 'Changement en cours...' : 'Changer le Mot de Passe'}
           </button>
         </form>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '1.25rem 0' }} />
+
+        {/* MFA / 2FA Subsection */}
+        <div>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <ShieldCheck size={16} color="#10B981" /> Double Authentification (MFA 2FA)
+          </h4>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            Protégez l'accès à vos comptes financiers avec Google Authenticator ou Authy.
+          </p>
+
+          {mfaStatusMsg && (
+            <div style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '0.75rem', fontSize: '0.82rem', fontWeight: 600 }}>
+              {mfaStatusMsg}
+            </div>
+          )}
+
+          <button className="btn btn-secondary btn-sm" onClick={handleEnrollMFA} disabled={isMfaEnrolling}>
+            🔐 Activer la Double Authentification 2FA
+          </button>
+        </div>
       </div>
 
       {/* Backup Export & Setup Wizard */}

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { detectCategoryFromMerchant } from '../../utils/merchantRules';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, AlertTriangle } from 'lucide-react';
 import type { StatementImportRow } from '../../types/finance';
 
 interface StatementImporterModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface ExtendedImportRow extends StatementImportRow {
+  isDuplicate?: boolean;
 }
 
 const SAMPLE_CSV = `2026-08-18;CARREFOUR MAROC CASABLANCA;-420.00
@@ -19,7 +23,7 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
   const { state, importTransactions } = useFinance();
 
   const [rawText, setRawText] = useState<string>(SAMPLE_CSV);
-  const [parsedRows, setParsedRows] = useState<StatementImportRow[]>([]);
+  const [parsedRows, setParsedRows] = useState<ExtendedImportRow[]>([]);
   const [targetAccountId, setTargetAccountId] = useState<string>(
     state.accounts.find(a => a.type === 'bank')?.id || state.accounts[0]?.id || ''
   );
@@ -27,9 +31,14 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
 
   if (!isOpen) return null;
 
+  // Build existing transaction fingerprints for duplicate detection
+  const existingFingerprints = new Set(
+    state.transactions.map(t => `${t.transactionDate}_${t.amount}_${t.description.toLowerCase().trim()}`)
+  );
+
   const handleParse = () => {
     const lines = rawText.split('\n').filter(l => l.trim().length > 0);
-    const rows: StatementImportRow[] = [];
+    const rows: ExtendedImportRow[] = [];
 
     for (const line of lines) {
       const parts = line.split(/[;,]/);
@@ -42,6 +51,8 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
           const type = amountNum < 0 ? 'expense' : 'income';
           const absAmount = Math.abs(amountNum);
           const detected = detectCategoryFromMerchant(description);
+          const fingerprint = `${date}_${absAmount}_${description.toLowerCase().trim()}`;
+          const isDuplicate = existingFingerprints.has(fingerprint);
 
           rows.push({
             date: date || new Date().toISOString().split('T')[0],
@@ -51,7 +62,8 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
             suggestedCategoryId: detected.categoryId,
             merchantName: description,
             confidence: detected.confidence,
-            selected: true
+            selected: !isDuplicate, // Unselect duplicates by default
+            isDuplicate
           });
         }
       }
@@ -62,13 +74,15 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
   };
 
   const handleImportSubmit = () => {
-    importTransactions(parsedRows, targetAccountId);
+    importTransactions(parsedRows.filter(r => r.selected), targetAccountId);
     onClose();
   };
 
   const toggleRowSelection = (idx: number) => {
     setParsedRows(prev => prev.map((r, i) => i === idx ? { ...r, selected: !r.selected } : r));
   };
+
+  const duplicateCount = parsedRows.filter(r => r.isDuplicate).length;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -97,15 +111,21 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
             />
 
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleParse}>
-              🔍 Analyser et Détecter les Catégories Marocaines
+              🔍 Analyser, Catégoriser & Filtrer les Doublons
             </button>
           </div>
         ) : (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>
                 {parsedRows.filter(r => r.selected).length} sur {parsedRows.length} opération(s) sélectionnée(s)
               </span>
+
+              {duplicateCount > 0 && (
+                <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>
+                  <AlertTriangle size={13} /> {duplicateCount} doublon(s) détecté(s) & masqué(s)
+                </span>
+              )}
 
               <button className="btn btn-secondary btn-sm" onClick={() => setIsParsed(false)}>
                 Modifier le texte
@@ -138,8 +158,8 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.75rem',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid var(--border-color)',
+                    background: row.isDuplicate ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.03)',
+                    border: row.isDuplicate ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid var(--border-color)',
                     borderRadius: '10px'
                   }}
                 >
@@ -150,7 +170,12 @@ export const StatementImporterModal: React.FC<StatementImporterModalProps> = ({ 
                       onChange={() => toggleRowSelection(idx)}
                     />
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{row.description}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {row.description}
+                        {row.isDuplicate && (
+                          <span style={{ fontSize: '0.65rem', color: '#F59E0B', fontWeight: 700 }}>[Doublon]</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {row.date} • <span style={{ color: '#10B981' }}>{row.suggestedCategoryId}</span>
                       </div>
