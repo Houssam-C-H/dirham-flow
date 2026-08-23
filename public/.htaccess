@@ -1,0 +1,45 @@
+# 🇲🇦 Hostinger Hardened Apache Configuration for DirhamFlow
+
+# 1. Disable Directory Indexing
+Options -Indexes
+
+# 2. Block direct access to hidden files and storage directories (.storage, .json, .env, .git)
+<FilesMatch "^\.|\.json$|\.env$|\.git">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 3. Allow CORS Headers safely
+  Header set Access-Control-Allow-Origin "*"
+  Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+  Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+  
+  # Security Headers
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "DENY"
+  Header set X-XSS-Protection "1; mode=block"
+
+  # Handle OPTIONS preflight requests
+  RewriteCond %{REQUEST_METHOD} OPTIONS
+  RewriteRule ^(.*)$ $1 [R=200,L]
+
+  # 4. Route API calls to PHP handler
+  RewriteRule ^api/v1/(.*)$ api/index.php?endpoint=$1 [QSA,L]
+
+  # 5. Serve existing files directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 6. Fallback all SPA routes to index.html
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Enable GZIP compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
