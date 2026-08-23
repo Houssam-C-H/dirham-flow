@@ -178,7 +178,8 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -186,4 +187,31 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
+}
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 640px) {
+  main {
+    padding: 0.85rem !important;
+  }
+
+  .glass-card {
+    padding: 1rem !important;
+    border-radius: 16px !important;
+  }
+
+  .modal-backdrop {
+    padding: 0.5rem !important;
+  }
+
+  .modal-content, .modal-container {
+    padding: 1.15rem !important;
+    max-height: 92vh !important;
+    width: 95vw !important;
+    border-radius: 18px !important;
+  }
+
+  table {
+    min-width: 640px;
+  }
 }

@@ -277,13 +277,13 @@ export const CasablancaPortfolioView: React.FC = () => {
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>• Mis à jour: {lastRefreshedAt}</span>
               )}
             </div>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>
+            <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
               📈 Portefeuille d'Actions Maroc
             </h2>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={refreshMarketFeedAndPositions} title="Actualiser le cours du marché">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: '340px' }}>
+            <button className="btn btn-secondary btn-sm" onClick={refreshMarketFeedAndPositions} title="Actualiser le cours du marché" style={{ flex: 1 }}>
               <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} /> Actualiser
             </button>
             <button
@@ -292,7 +292,7 @@ export const CasablancaPortfolioView: React.FC = () => {
                 setIsAddModalOpen(true);
                 setStockSearchQuery('');
               }}
-              style={{ fontWeight: 700, padding: '0.65rem 1.1rem' }}
+              style={{ fontWeight: 700, padding: '0.65rem 1rem', flex: 1.2 }}
             >
               <Plus size={16} /> + Nouvelle Position
             </button>
@@ -301,7 +301,7 @@ export const CasablancaPortfolioView: React.FC = () => {
       </div>
 
       {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
         <div className="glass-card">
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
             Valeur Totale du Portefeuille
@@ -349,8 +349,8 @@ export const CasablancaPortfolioView: React.FC = () => {
             <p style={{ fontSize: '0.85rem' }}>Cliquez sur "+ Nouvelle Position" pour rechercher vos actions CIH, Maroc Telecom, Attijariwafa, BCP, Addoha...</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', minWidth: '600px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: isRtl ? 'right' : 'left' }}>
                   <th style={{ padding: '0.75rem' }}>Action / Symbole</th>
@@ -386,7 +386,7 @@ export const CasablancaPortfolioView: React.FC = () => {
                             type="number"
                             step="0.1"
                             className="form-input"
-                            style={{ width: '90px', padding: '2px 6px', fontSize: '0.85rem', fontWeight: 700 }}
+                            style={{ width: '85px', padding: '2px 6px', fontSize: '0.85rem', fontWeight: 700 }}
                             value={tempPriceValue}
                             onChange={e => setTempPriceValue(e.target.value)}
                           />
@@ -434,7 +434,7 @@ export const CasablancaPortfolioView: React.FC = () => {
         )}
       </div>
 
-      {/* Expanded Searchable Add Position Modal Popup */}
+      {/* Expanded Mobile-Optimized Searchable Add Position Modal Popup */}
       {isAddModalOpen && ReactDOM.createPortal(
         <div
           className="modal-backdrop"
@@ -445,13 +445,13 @@ export const CasablancaPortfolioView: React.FC = () => {
             left: 0,
             width: '100vw',
             height: '100vh',
-            background: 'rgba(0, 0, 0, 0.82)',
+            background: 'rgba(0, 0, 0, 0.85)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
-            padding: '1rem'
+            padding: '0.5rem'
           }}
         >
           <div
@@ -459,41 +459,42 @@ export const CasablancaPortfolioView: React.FC = () => {
             onClick={e => e.stopPropagation()}
             style={{
               maxWidth: '680px',
-              width: '100%',
-              maxHeight: '88vh',
+              width: '95vw',
+              maxHeight: '92vh',
               display: 'flex',
               flexDirection: 'column',
               background: '#0F172A',
               border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: '24px',
-              padding: '2rem',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)'
+              borderRadius: '20px',
+              padding: '1.25rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)',
+              overflow: 'hidden'
             }}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
-                <h3 style={{ fontSize: '1.35rem', fontWeight: 800 }}>➕ Ajouter des Actions à votre Portefeuille</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Recherchez parmi les 40+ sociétés cotées à la Bourse de Casablanca (BVC)
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>➕ Ajouter des Actions BVC</h3>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                  Recherchez parmi les 40+ sociétés cotées à Casablanca
                 </p>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddPosition} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', overflow: 'hidden' }}>
+            <form onSubmit={handleAddPosition} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               {/* Search Bar Input */}
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ fontWeight: 700 }}>🔍 Rechercher une Action / Entreprise</label>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8rem' }}>🔍 Rechercher une Action / Entreprise</label>
                 <div style={{ position: 'relative' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
                   <input
                     type="text"
-                    placeholder="Tapez CIH, Attijariwafa, Maroc Telecom, Addoha, TGCC, BCP..."
+                    placeholder="Tapez CIH, Attijariwafa, Maroc Telecom, Addoha..."
                     className="form-input"
-                    style={{ paddingLeft: '2.8rem', fontSize: '0.95rem', fontWeight: 600, background: 'rgba(255,255,255,0.04)', borderRadius: '12px' }}
+                    style={{ paddingLeft: '2.5rem', fontSize: '0.88rem', fontWeight: 600, background: 'rgba(255,255,255,0.04)', borderRadius: '10px' }}
                     value={stockSearchQuery}
                     onChange={e => setStockSearchQuery(e.target.value)}
                   />
@@ -501,7 +502,7 @@ export const CasablancaPortfolioView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setStockSearchQuery('')}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                     >
                       <X size={14} />
                     </button>
@@ -509,13 +510,16 @@ export const CasablancaPortfolioView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Scrollable Stocks Grid */}
+              {/* Scrollable Stocks Grid - 2 columns per row on Mobile */}
               <div style={{
-                maxHeight: '230px',
+                flex: 1,
+                minHeight: '160px',
+                maxHeight: '260px',
                 overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '0.75rem',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: '0.6rem',
                 paddingRight: '4px'
               }}>
                 {filteredStocks.map(stock => {
@@ -525,8 +529,8 @@ export const CasablancaPortfolioView: React.FC = () => {
                       key={stock.symbol}
                       onClick={() => handleSelectStock(stock)}
                       style={{
-                        padding: '0.75rem 0.9rem',
-                        borderRadius: '14px',
+                        padding: '0.6rem 0.75rem',
+                        borderRadius: '12px',
                         border: isSelected ? '2px solid #10B981' : '1px solid var(--border-color)',
                         background: isSelected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
                         cursor: 'pointer',
@@ -534,26 +538,26 @@ export const CasablancaPortfolioView: React.FC = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        gap: '0.35rem'
+                        gap: '0.25rem'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isSelected ? '#10B981' : 'var(--text-main)' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: isSelected ? '#10B981' : 'var(--text-main)' }}>
                             {stock.symbol}
                           </span>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.2 }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '90px' }}>
                             {stock.companyName}
                           </div>
                         </div>
-                        {isSelected && <CheckCircle size={16} color="#10B981" />}
+                        {isSelected && <CheckCircle size={14} color="#10B981" style={{ flexShrink: 0 }} />}
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                          {stock.sector}
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.05)', padding: '1px 4px', borderRadius: '4px' }}>
+                          {stock.sector.split(' ')[0]}
                         </span>
-                        <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#10B981' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#10B981' }}>
                           {stock.price} DH
                         </span>
                       </div>
@@ -562,7 +566,7 @@ export const CasablancaPortfolioView: React.FC = () => {
                 })}
 
                 {filteredStocks.length === 0 && (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                     Aucune action trouvée pour "{stockSearchQuery}"
                   </div>
                 )}
@@ -573,21 +577,21 @@ export const CasablancaPortfolioView: React.FC = () => {
                 <div style={{
                   background: 'rgba(16, 185, 129, 0.08)',
                   border: '1px solid rgba(16, 185, 129, 0.25)',
-                  borderRadius: '14px',
-                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  padding: '0.6rem 0.85rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between'
                 }}>
                   <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Action Sélectionnée</span>
-                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sélectionnée</span>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)' }}>
                       {selectedStockObj.symbol} — {selectedStockObj.companyName}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cours du marché</span>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#10B981' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Cours BVC</span>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#10B981' }}>
                       {selectedStockObj.price} DH
                     </div>
                   </div>
@@ -595,29 +599,29 @@ export const CasablancaPortfolioView: React.FC = () => {
               )}
 
               {/* Form Inputs (Quantity & Average Buy Price) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 700 }}>Nombre d'actions détenues</label>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>Nombre d'actions</label>
                   <input
                     type="number"
                     required
                     placeholder="50"
                     className="form-input"
-                    style={{ fontWeight: 800, fontSize: '1.15rem' }}
+                    style={{ fontWeight: 800, fontSize: '1rem', padding: '0.6rem' }}
                     value={quantityInput}
                     onChange={e => setQuantityInput(e.target.value)}
                   />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 700 }}>Prix d'Achat Moyen (DH / action)</label>
+                  <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>Prix Achat Moyen (DH)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     placeholder="340.00 DH"
                     className="form-input"
-                    style={{ fontWeight: 800, fontSize: '1.15rem' }}
+                    style={{ fontWeight: 800, fontSize: '1rem', padding: '0.6rem' }}
                     value={buyPriceInput}
                     onChange={e => setBuyPriceInput(e.target.value)}
                   />
@@ -625,11 +629,11 @@ export const CasablancaPortfolioView: React.FC = () => {
               </div>
 
               {/* Submit Buttons */}
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsAddModalOpen(false)}>
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.2rem' }}>
+                <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1, padding: '0.65rem' }} onClick={() => setIsAddModalOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1.5, fontWeight: 800, padding: '0.8rem' }}>
+                <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1.5, fontWeight: 800, padding: '0.65rem' }}>
                   [ Ajouter au Portefeuille ]
                 </button>
               </div>
