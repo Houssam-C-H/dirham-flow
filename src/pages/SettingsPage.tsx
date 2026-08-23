@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useFinance } from '../context/FinanceContext';
-import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle, Download, Trash2, ShieldAlert } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import type { AppLanguage, CurrencyDisplay } from '../types/user';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -11,7 +12,7 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLogout }) => {
-  const { state, saveAndSetState, language, setLanguage, currencyDisplay, setCurrencyDisplay, resetDemoData } = useFinance();
+  const { state, saveAndSetState, language, setLanguage, currencyDisplay, setCurrencyDisplay } = useFinance();
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.fr;
 
@@ -30,6 +31,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState<string>('');
   const [passwordErrorMsg, setPasswordErrorMsg] = useState<string>('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState<boolean>(false);
+
+  // Delete Account Confirmation Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState<string>('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +117,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
     }
   };
 
+  const handleExportDataJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+    const downloadAnchor = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `dirhamflow_backup_${dateStr}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleDeleteUserAccount = async () => {
+    if (deleteConfirmInput.trim().toUpperCase() !== 'SUPPRIMER') return;
+
+    setIsDeletingAccount(true);
+
+    try {
+      if (isSupabaseConfigured) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Delete database records
+          await supabase.from('profiles').delete().eq('id', user.id);
+          await supabase.from('accounts').delete().eq('user_id', user.id);
+          await supabase.from('transactions').delete().eq('user_id', user.id);
+          await supabase.from('budgets').delete().eq('user_id', user.id);
+          await supabase.from('bills').delete().eq('user_id', user.id);
+          await supabase.from('savings_goals').delete().eq('user_id', user.id);
+          await supabase.from('portfolio_positions').delete().eq('user_id', user.id);
+          await supabase.auth.signOut();
+        }
+      }
+
+      setIsDeleteModalOpen(false);
+      onLogout();
+    } catch (err) {
+      console.error('Delete account error:', err);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
       {/* User Info Header Card */}
@@ -134,7 +181,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{fullName}</h2>
-              <span className="badge badge-success">Compte Vérifié 🇲🇦</span>
+              <span className="badge badge-success">Compte Sécurisé 🇲🇦</span>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{email}</p>
           </div>
@@ -295,24 +342,130 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </form>
       </div>
 
-      {/* Reset & Setup Wizard Options */}
-      <div className="glass-card" style={{ borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#EF4444' }}>
-          Réinitialisation & Assistant
+      {/* Backup Export & Setup Wizard */}
+      <div className="glass-card">
+        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+          💾 Sauvegarde & Exportation des Données
         </h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-          Redémarrez l'assistant d'installation financière pour recalibrer vos soldes de départ.
+          Téléchargez une copie complète et structurée de vos comptes, budgets et transactions au format JSON.
         </p>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary btn-sm" onClick={handleExportDataJSON} style={{ fontWeight: 700 }}>
+            <Download size={16} /> Exporter mes données (JSON)
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={onReRunWizard}>
             <RefreshCw size={15} /> Refaire l'Assistant d'Installation
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={resetDemoData} style={{ opacity: 0.6 }}>
-            Réinitialiser les Données Démo
-          </button>
         </div>
       </div>
+
+      {/* Danger Zone: Account Deletion */}
+      <div className="glass-card" style={{ borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.03)' }}>
+        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#EF4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ShieldAlert size={18} /> Zone Danger — Suppression du Compte
+        </h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+          Supprimez définitivement votre compte et l'ensemble de vos données financières stockées.
+        </p>
+
+        <button className="btn btn-sm" onClick={() => setIsDeleteModalOpen(true)} style={{ background: '#EF4444', color: '#FFF', fontWeight: 700 }}>
+          <Trash2 size={15} /> Supprimer Mon Compte
+        </button>
+      </div>
+
+      {/* Account Deletion Confirmation Portal Modal */}
+      {isDeleteModalOpen && ReactDOM.createPortal(
+        <div
+          className="modal-backdrop"
+          onClick={() => setIsDeleteModalOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '1rem'
+          }}
+        >
+          <div
+            className="modal-content"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '420px',
+              width: '100%',
+              background: '#0F172A',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '20px',
+              padding: '2rem',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)'
+            }}
+          >
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '1rem',
+              color: '#EF4444'
+            }}>
+              <Trash2 size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#EF4444', marginBottom: '0.5rem' }}>
+              Suppression Définitive du Compte
+            </h3>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Cette action est **irréversible**. Tous vos comptes, transactions, budgets, factures et positions boursières seront définitivement effacés.
+            </p>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+              <label className="form-label">Tapez <b>SUPPRIMER</b> pour confirmer</label>
+              <input
+                type="text"
+                placeholder="SUPPRIMER"
+                className="form-input"
+                style={{ fontWeight: 800, letterSpacing: '1px' }}
+                value={deleteConfirmInput}
+                onChange={e => setDeleteConfirmInput(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsDeleteModalOpen(false)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={deleteConfirmInput.trim().toUpperCase() !== 'SUPPRIMER' || isDeletingAccount}
+                style={{
+                  flex: 1,
+                  background: deleteConfirmInput.trim().toUpperCase() === 'SUPPRIMER' ? '#EF4444' : 'rgba(239, 68, 68, 0.4)',
+                  color: '#FFF',
+                  fontWeight: 700
+                }}
+                onClick={handleDeleteUserAccount}
+              >
+                {isDeletingAccount ? 'Suppression...' : 'Supprimer Définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
