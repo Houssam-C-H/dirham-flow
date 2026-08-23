@@ -4,11 +4,7 @@ const STORAGE_KEY = 'dirhamflow_app_state_v1';
 
 export const INITIAL_DEMO_DATA: AppStateData = {
   onboardingCompleted: false,
-  user: {
-    fullName: '',
-    email: '',
-    language: 'fr'
-  },
+  user: null,
   accounts: [
     {
       id: 'acc_cash',

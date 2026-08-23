@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FinanceProvider, useFinance } from '../context/FinanceContext';
 import { Sidebar } from '../components/common/Sidebar';
 
@@ -18,6 +18,7 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { AuthModal } from '../components/onboarding/AuthModal';
 import { OnboardingWizard } from '../components/onboarding/OnboardingWizard';
 import type { OnboardingUserData } from '../types/onboarding';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Modals
 import { AddTransactionModal } from '../components/transactions/AddTransactionModal';
@@ -26,11 +27,12 @@ import { AffordabilityAdvisorModal } from '../components/affordability/Affordabi
 import { StatementImporterModal } from '../components/importer/StatementImporterModal';
 
 const AppContent: React.FC = () => {
-  const { state, language } = useFinance();
+  const { state, language, saveAndSetState } = useFinance();
 
-  const [authenticatedUser, setAuthenticatedUser] = useState<OnboardingUserData | null>(state.user || null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<OnboardingUserData | null>(
+    state.user && state.user.email ? state.user : null
+  );
   const [showWizard, setShowWizard] = useState<boolean>(!state.onboardingCompleted);
-
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Modal States
@@ -41,12 +43,44 @@ const AppContent: React.FC = () => {
 
   const isRtl = language === 'ar_darija';
 
-  // 1. Not Authenticated -> Show Auth Modal
+  // Keep authenticatedUser synced with state.user changes
+  useEffect(() => {
+    if (state.user && state.user.email) {
+      setAuthenticatedUser(state.user);
+      setShowWizard(!state.onboardingCompleted);
+    } else {
+      setAuthenticatedUser(null);
+    }
+  }, [state.user, state.onboardingCompleted]);
+
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Supabase signout error:', e);
+      }
+    }
+    setAuthenticatedUser(null);
+    setShowWizard(false);
+    saveAndSetState({
+      ...state,
+      user: null,
+      onboardingCompleted: false
+    });
+  };
+
+  // 1. Not Authenticated -> Show Auth Modal (Registration & Login)
   if (!authenticatedUser) {
     return (
       <AuthModal
         onAuthenticated={(user, isNewUser) => {
           setAuthenticatedUser(user);
+          saveAndSetState({
+            ...state,
+            user,
+            onboardingCompleted: isNewUser ? false : state.onboardingCompleted
+          });
           if (isNewUser || !state.onboardingCompleted) {
             setShowWizard(true);
           } else {
@@ -62,12 +96,18 @@ const AppContent: React.FC = () => {
     return (
       <OnboardingWizard
         userData={authenticatedUser}
-        onCompleted={() => setShowWizard(false)}
+        onCompleted={() => {
+          setShowWizard(false);
+          saveAndSetState({
+            ...state,
+            onboardingCompleted: true
+          });
+        }}
       />
     );
   }
 
-  // 3. Authenticated & Onboarding Complete -> Render Main Dashboard Layout with Left (LTR) / Right (RTL Arabic) Sidebar
+  // 3. Authenticated & Onboarding Complete -> Render Main Dashboard Layout
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
@@ -78,7 +118,7 @@ const AppContent: React.FC = () => {
         background: 'var(--bg-main)'
       }}
     >
-      {/* Sidebar Navigation (Left in LTR French/English / Right in RTL Arabic) */}
+      {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -135,10 +175,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'settings' && (
             <SettingsPage
               onReRunWizard={() => setShowWizard(true)}
-              onLogout={() => {
-                setAuthenticatedUser(null);
-                setShowWizard(false);
-              }}
+              onLogout={handleLogout}
             />
           )}
         </main>
