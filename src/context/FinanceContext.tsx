@@ -32,6 +32,8 @@ interface FinanceContextType {
   deleteSavingsGoal: (goalId: string) => void;
   updateBudgetLimit: (categoryId: string, limit: number) => void;
   addCustomCategory: (name: string, icon: string, group: CategoryGroup, limit: number, nameDarija?: string) => void;
+  updateCategory: (categoryId: string, updatedData: Partial<Category>) => void;
+  deleteCategory: (categoryId: string) => void;
   importTransactions: (rows: StatementImportRow[], targetAccountId: string) => void;
   evaluateAffordability: (itemName: string, price: number) => AffordabilityAssessment;
   resetDemoData: () => Promise<void>;
@@ -109,9 +111,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateAccount = (accountId: string, updatedData: Partial<Account>) => {
-    const updatedAccounts = state.accounts.map(acc =>
-      acc.id === accountId ? { ...acc, ...updatedData } : acc
-    );
+    const updatedAccounts = state.accounts.map(acc => acc.id === accountId ? { ...acc, ...updatedData } : acc);
     saveAndSetState({ ...state, accounts: updatedAccounts });
   };
 
@@ -121,78 +121,43 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const executeLinkedTransfer = (fromAccId: string, toAccId: string, amount: number, description: string) => {
-    const updated = financeService.executeLinkedTransfer(state, fromAccId, toAccId, amount, description);
-    saveAndSetState(updated);
+    const newState = financeService.executeLinkedTransfer(state, fromAccId, toAccId, amount, description);
+    saveAndSetState(newState);
   };
 
   const addTransaction = (txData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'currency'>) => {
-    const updated = financeService.addTransaction(state, txData);
-    saveAndSetState(updated);
+    const newState = financeService.addTransaction(state, txData);
+    saveAndSetState(newState);
   };
 
   const markBillPaid = (billId: string) => {
-    const updated = financeService.markBillPaid(state, billId);
-    saveAndSetState(updated);
+    const newState = financeService.markBillPaid(state, billId);
+    saveAndSetState(newState);
   };
 
   const updateSalaryConfig = (config: SalaryConfig) => {
-    const updated = {
-      ...state,
-      salaryConfig: config
-    };
-    saveAndSetState(updated);
+    saveAndSetState({ ...state, salaryConfig: config });
   };
 
   const updateSafetyBuffer = (bufferAmount: number) => {
-    const updated = {
+    saveAndSetState({
       ...state,
       preferences: { ...state.preferences, cashSafetyBuffer: bufferAmount },
       salaryConfig: { ...state.salaryConfig, cashSafetyBuffer: bufferAmount }
-    };
-    saveAndSetState(updated);
+    });
   };
 
   const addSavingsDeposit = (goalId: string, amount: number, sourceAccountId: string) => {
-    if (amount <= 0) return;
+    const goal = state.goals.find(g => g.id === goalId);
+    if (!goal) return;
 
-    // Deduct from source account and add to goal
-    const updatedAccounts = state.accounts.map(acc => 
-      acc.id === sourceAccountId ? { ...acc, balance: acc.balance - amount } : acc
-    );
+    const newCurrent = goal.currentAmount + amount;
+    const updatedGoals = state.goals.map(g => g.id === goalId ? { ...g, currentAmount: newCurrent, isCompleted: newCurrent >= g.targetAmount } : g);
 
-    const updatedGoals = state.goals.map(g => {
-      if (g.id === goalId) {
-        const newAmt = g.currentAmount + amount;
-        return {
-          ...g,
-          currentAmount: newAmt,
-          isCompleted: newAmt >= g.targetAmount
-        };
-      }
-      return g;
-    });
+    // Deduct from source account
+    const updatedAccounts = state.accounts.map(acc => acc.id === sourceAccountId ? { ...acc, balance: acc.balance - amount } : acc);
 
-    const targetGoal = state.goals.find(g => g.id === goalId);
-    const txId = `tx_savings_${Date.now()}`;
-    const newTx: Transaction = {
-      id: txId,
-      accountId: sourceAccountId,
-      type: 'expense',
-      amount,
-      currency: 'MAD',
-      description: `Épargne 🎯: ${targetGoal?.title || 'Objectif'}`,
-      transactionDate: new Date().toISOString().split('T')[0],
-      source: 'manual',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    saveAndSetState({
-      ...state,
-      accounts: updatedAccounts,
-      goals: updatedGoals,
-      transactions: [newTx, ...state.transactions]
-    });
+    saveAndSetState({ ...state, goals: updatedGoals, accounts: updatedAccounts });
   };
 
   const updateSavingsGoal = (goalId: string, updatedGoalData: Partial<SavingsGoal>) => {
@@ -255,6 +220,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const updateCategory = (categoryId: string, updatedData: Partial<Category>) => {
+    const updatedCategories = state.categories.map(c => c.id === categoryId ? { ...c, ...updatedData } : c);
+    saveAndSetState({ ...state, categories: updatedCategories });
+  };
+
+  const deleteCategory = (categoryId: string) => {
+    const updatedCategories = state.categories.filter(c => c.id !== categoryId);
+    const updatedBudgets = state.budgets.filter(b => b.categoryId !== categoryId);
+    saveAndSetState({ ...state, categories: updatedCategories, budgets: updatedBudgets });
+  };
+
   const importTransactions = (rows: StatementImportRow[], targetAccountId: string) => {
     const selectedRows = rows.filter(r => r.selected);
     if (selectedRows.length === 0) return;
@@ -268,32 +244,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         amount: row.amount,
         description: row.description,
         transactionDate: row.date,
-        merchant: row.merchantName,
         source: 'import'
       });
     }
-
     saveAndSetState(currentState);
   };
 
-  const evaluateAffordability = (itemName: string, price: number) => {
+  const evaluateAffordability = (itemName: string, price: number): AffordabilityAssessment => {
     return financeService.evaluateAffordabilityForItem(state, itemName, price);
   };
 
   const resetDemoData = async () => {
-    const demo = await financeService.resetDemoData();
-    setState(demo);
+    const fresh = await financeService.resetDemoData();
+    setState(fresh);
   };
 
   return (
     <FinanceContext.Provider
       value={{
         state,
-        loading: false,
-        currencyDisplay: state.preferences.currencyDisplay || 'DH',
-        language: state.preferences.language || 'fr',
-        theme: state.preferences.theme || 'dark',
-        activeMode: state.seasonalConfig?.activeMode || 'standard',
+        loading,
+        currencyDisplay: state.preferences.currencyDisplay,
+        language: state.preferences.language,
+        theme: state.preferences.theme,
+        activeMode: state.seasonalConfig.activeMode,
         saveAndSetState,
         setCurrencyDisplay,
         setLanguage,
@@ -311,6 +285,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteSavingsGoal,
         updateBudgetLimit,
         addCustomCategory,
+        updateCategory,
+        deleteCategory,
         importTransactions,
         evaluateAffordability,
         resetDemoData
