@@ -7,13 +7,18 @@ export class SupabaseStorageAdapter implements StorageAdapter {
 
   async loadState(): Promise<AppStateData> {
     if (!isSupabaseConfigured) {
-      // Local demo mode when Supabase credentials are not set
+      // Local mode when Supabase credentials are not set
       return this.localAdapter.loadState();
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      // If user is not authenticated, load default preferences but unauthenticated state
+      // Clear legacy storage keys containing stale sessions
+      try {
+        localStorage.removeItem('dirhamflow_app_state_v1');
+        localStorage.removeItem('dirhamflow_app_state_v2');
+      } catch (e) {}
+
       const local = await this.localAdapter.loadState();
       return {
         ...local,
@@ -79,11 +84,15 @@ export class SupabaseStorageAdapter implements StorageAdapter {
 
     const localPrefs = await this.localAdapter.loadState();
 
+    const userEmail = user.email || '';
+    const rawName = profile?.full_name || user.user_metadata?.full_name || '';
+    const computedName = rawName && rawName !== userEmail ? rawName : (userEmail.split('@')[0] || 'Utilisateur');
+
     return {
       onboardingCompleted: profile?.onboarding_completed ?? false,
       user: {
-        fullName: profile?.full_name || user.user_metadata?.full_name || user.email || 'Utilisateur',
-        email: user.email || '',
+        fullName: computedName,
+        email: userEmail,
         language: (profile?.language as any) || localPrefs.user?.language || 'fr'
       },
       accounts: (accounts || []).map(a => ({

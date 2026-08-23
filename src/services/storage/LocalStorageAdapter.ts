@@ -1,6 +1,7 @@
 import type { StorageAdapter, AppStateData } from './StorageAdapter';
 
-const STORAGE_KEY = 'dirhamflow_app_state_v1';
+const STORAGE_KEY = 'dirhamflow_app_state_v2';
+const LEGACY_STORAGE_KEY = 'dirhamflow_app_state_v1';
 
 export const INITIAL_DEMO_DATA: AppStateData = {
   onboardingCompleted: false,
@@ -103,13 +104,17 @@ export const INITIAL_DEMO_DATA: AppStateData = {
 export class LocalStorageAdapter implements StorageAdapter {
   async loadState(): Promise<AppStateData> {
     try {
+      // Clear legacy storage key if present
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem('dirhamflow_registered_users_v1');
+
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
         await this.saveState(INITIAL_DEMO_DATA);
         return INITIAL_DEMO_DATA;
       }
       const parsed = JSON.parse(raw) as AppStateData;
-      return { ...INITIAL_DEMO_DATA, ...parsed };
+      return { ...INITIAL_DEMO_DATA, ...parsed, user: parsed.user || null };
     } catch (e) {
       console.warn('LocalStorageAdapter read error, fallback to initial state:', e);
       return INITIAL_DEMO_DATA;
