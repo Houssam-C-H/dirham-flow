@@ -4,6 +4,7 @@ import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency } from '../../utils/formatters';
 import { TrendingUp, TrendingDown, Plus, Trash2, X, RefreshCw, Landmark } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { fetchLiveCasablancaQuotes, type CasablancaStockQuote } from '../../services/api/casablancaBourseApi';
 
 export interface PortfolioPosition {
   id: string;
@@ -14,34 +15,14 @@ export interface PortfolioPosition {
   sector?: string;
 }
 
-interface StockQuote {
-  symbol: string;
-  companyName: string;
-  price: number;
-  changePercent: number;
-  sector: string;
-}
-
-// Live Casablanca Bourse Market Feed Reference (MAD / DH)
-const CASABLANCA_MARKET_FEED: Record<string, StockQuote> = {
-  IAM: { symbol: 'IAM', companyName: 'Maroc Telecom', price: 96.80, changePercent: +1.25, sector: 'Télécommunications' },
-  ATW: { symbol: 'ATW', companyName: 'Attijariwafa Bank', price: 512.00, changePercent: +0.78, sector: 'Banques & Services Financiers' },
-  BCP: { symbol: 'BCP', companyName: 'Banque Centrale Populaire', price: 305.50, changePercent: -0.45, sector: 'Banques' },
-  BOA: { symbol: 'BOA', companyName: 'Bank of Africa (BMCE)', price: 215.00, changePercent: +1.40, sector: 'Banques' },
-  ATL: { symbol: 'ATL', companyName: 'AtlantaSanad Assurance', price: 138.00, changePercent: +0.20, sector: 'Assurances' },
-  ADH: { symbol: 'ADH', companyName: 'Douja Promotion Addoha', price: 34.50, changePercent: +3.60, sector: 'Immobilier' },
-  RDS: { symbol: 'RDS', companyName: 'Résidences Dar Saada', price: 42.10, changePercent: -1.10, sector: 'Immobilier' },
-  TGCC: { symbol: 'TGCC', companyName: 'TGCC S.A.', price: 340.00, changePercent: +2.10, sector: 'BTP & Construction' },
-  LHM: { symbol: 'LHM', companyName: 'LafargeHolcim Maroc', price: 1950.00, changePercent: +0.50, sector: 'Matériaux de Construction' },
-  CMA: { symbol: 'CMA', companyName: 'Ciments du Maroc', price: 1780.00, changePercent: -0.80, sector: 'Matériaux de Construction' }
-};
-
 const LOCAL_PORTFOLIO_KEY = 'dirhamflow_portfolio_positions_v1';
 
 export const CasablancaPortfolioView: React.FC = () => {
   const { currencyDisplay, state } = useFinance();
   const [positions, setPositions] = useState<PortfolioPosition[]>([]);
+  const [marketFeed, setMarketFeed] = useState<Record<string, CasablancaStockQuote>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>('');
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -51,9 +32,16 @@ export const CasablancaPortfolioView: React.FC = () => {
 
   const isRtl = state.preferences.language === 'ar_darija';
 
-  // Load positions from Supabase or LocalStorage
-  const loadPositions = async () => {
+  // Fetch Live Quotes & Portfolio Positions
+  const refreshMarketFeedAndPositions = async () => {
     setIsLoading(true);
+
+    // 1. Fetch live stock quotes from API endpoint
+    const liveQuotes = await fetchLiveCasablancaQuotes();
+    setMarketFeed(liveQuotes);
+    setLastRefreshedAt(new Date().toLocaleTimeString());
+
+    // 2. Load portfolio positions from Supabase or LocalStorage
     if (isSupabaseConfigured) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -77,7 +65,7 @@ export const CasablancaPortfolioView: React.FC = () => {
           }
         }
       } catch (e) {
-        console.warn('Supabase portfolio load error, falling back to local:', e);
+        console.warn('Supabase portfolio load error:', e);
       }
     }
 
@@ -87,7 +75,6 @@ export const CasablancaPortfolioView: React.FC = () => {
       if (raw) {
         setPositions(JSON.parse(raw));
       } else {
-        // Default clean state (no dummy demo positions)
         setPositions([]);
         localStorage.setItem(LOCAL_PORTFOLIO_KEY, JSON.stringify([]));
       }
@@ -99,7 +86,7 @@ export const CasablancaPortfolioView: React.FC = () => {
   };
 
   useEffect(() => {
-    loadPositions();
+    refreshMarketFeedAndPositions();
   }, []);
 
   const savePositionsState = async (updated: PortfolioPosition[]) => {
@@ -136,7 +123,7 @@ export const CasablancaPortfolioView: React.FC = () => {
 
     if (isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) return;
 
-    const stockInfo = CASABLANCA_MARKET_FEED[selectedSymbol] || {
+    const stockInfo = marketFeed[selectedSymbol] || {
       symbol: selectedSymbol,
       companyName: selectedSymbol,
       sector: 'Bourse'
@@ -188,9 +175,9 @@ export const CasablancaPortfolioView: React.FC = () => {
     }
   };
 
-  // Calculations
+  // Calculations using live marketFeed
   const portfolioMetrics = positions.map(pos => {
-    const currentPrice = CASABLANCA_MARKET_FEED[pos.symbol]?.price || pos.averageBuyPrice;
+    const currentPrice = marketFeed[pos.symbol]?.price || pos.averageBuyPrice;
     const currentMarketValue = pos.quantity * currentPrice;
     const investedAmount = pos.quantity * pos.averageBuyPrice;
     const gainLoss = currentMarketValue - investedAmount;
@@ -218,8 +205,10 @@ export const CasablancaPortfolioView: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <span className="badge badge-success">🇲🇦 Casablanca Bourse (BVC)</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>• Cours en Dirhams (DH)</span>
+              <span className="badge badge-success">🇲🇦 Casablanca Bourse API (BVC)</span>
+              {lastRefreshedAt && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>• Mis à jour: {lastRefreshedAt}</span>
+              )}
             </div>
             <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>
               📈 Portefeuille d'Actions Maroc
@@ -227,7 +216,7 @@ export const CasablancaPortfolioView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button className="btn btn-secondary btn-sm" onClick={loadPositions} title="Actualiser le cours du marché">
+            <button className="btn btn-secondary btn-sm" onClick={refreshMarketFeedAndPositions} title="Actualiser le cours du marché">
               <RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} /> Actualiser
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)} style={{ fontWeight: 700 }}>
@@ -395,12 +384,12 @@ export const CasablancaPortfolioView: React.FC = () => {
                   onChange={e => {
                     const sym = e.target.value;
                     setSelectedSymbol(sym);
-                    if (CASABLANCA_MARKET_FEED[sym]) {
-                      setBuyPriceInput(CASABLANCA_MARKET_FEED[sym].price.toString());
+                    if (marketFeed[sym]) {
+                      setBuyPriceInput(marketFeed[sym].price.toString());
                     }
                   }}
                 >
-                  {Object.values(CASABLANCA_MARKET_FEED).map(stock => (
+                  {Object.values(marketFeed).map(stock => (
                     <option key={stock.symbol} value={stock.symbol} style={{ background: '#0F172A', color: '#F8FAFC' }}>
                       {stock.symbol} — {stock.companyName} ({stock.price} DH)
                     </option>
