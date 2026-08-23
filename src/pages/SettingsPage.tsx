@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useFinance } from '../context/FinanceContext';
-import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle, Download, Trash2, ShieldAlert, ShieldCheck, Tag, Plus } from 'lucide-react';
+import { User, Mail, Lock, Globe, Key, LogOut, CheckCircle2, AlertCircle, Download, Trash2, ShieldAlert, ShieldCheck, Tag, Plus } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import type { AppLanguage, CurrencyDisplay } from '../types/user';
 import type { CategoryGroup } from '../types/budget';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface SettingsPageProps {
-  onReRunWizard: () => void;
+  onReRunWizard?: () => void;
   onLogout: () => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLogout }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
   const { state, saveAndSetState, language, setLanguage, currencyDisplay, setCurrencyDisplay, addCustomCategory } = useFinance();
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.fr;
@@ -478,7 +478,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </div>
       </div>
 
-      {/* Backup Export & Setup Wizard */}
+      {/* Backup Export */}
       <div className="glass-card">
         <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem' }}>
           💾 Sauvegarde & Exportation des Données
@@ -487,14 +487,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
           Téléchargez une copie complète et structurée de vos comptes, budgets et transactions au format JSON.
         </p>
 
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary btn-sm" onClick={handleExportDataJSON} style={{ fontWeight: 700 }}>
-            <Download size={16} /> Exporter mes données (JSON)
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={onReRunWizard}>
-            <RefreshCw size={15} /> Refaire l'Assistant d'Installation
-          </button>
-        </div>
+        <button className="btn btn-primary btn-sm" onClick={handleExportDataJSON} style={{ fontWeight: 700 }}>
+          <Download size={16} /> Exporter mes données (JSON)
+        </button>
       </div>
 
       {/* Danger Zone: Account Deletion */}

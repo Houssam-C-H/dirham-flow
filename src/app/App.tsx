@@ -14,9 +14,8 @@ import { SeasonalModesView } from '../components/seasonal/SeasonalModesView';
 import { CasablancaPortfolioView } from '../components/portfolio/CasablancaPortfolioView';
 import { SettingsPage } from '../pages/SettingsPage';
 
-// Onboarding & Auth
+// Auth
 import { AuthModal } from '../components/onboarding/AuthModal';
-import { OnboardingWizard } from '../components/onboarding/OnboardingWizard';
 import type { OnboardingUserData } from '../types/onboarding';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -32,7 +31,6 @@ const AppContent: React.FC = () => {
   const [authenticatedUser, setAuthenticatedUser] = useState<OnboardingUserData | null>(
     state.user && state.user.email ? state.user : null
   );
-  const [showWizard, setShowWizard] = useState<boolean>(!state.onboardingCompleted);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Modal States
@@ -47,11 +45,10 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (state.user && state.user.email) {
       setAuthenticatedUser(state.user);
-      setShowWizard(!state.onboardingCompleted);
     } else {
       setAuthenticatedUser(null);
     }
-  }, [state.user, state.onboardingCompleted]);
+  }, [state.user]);
 
   const handleLogout = async () => {
     if (isSupabaseConfigured) {
@@ -62,25 +59,16 @@ const AppContent: React.FC = () => {
       }
     }
     setAuthenticatedUser(null);
-    setShowWizard(false);
     saveAndSetState({
       ...state,
       user: null,
-      onboardingCompleted: false
+      onboardingCompleted: true
     });
   };
 
-  const handleAuthenticated = async (user: OnboardingUserData, isNewUser: boolean) => {
+  const handleAuthenticated = async (user: OnboardingUserData) => {
     setAuthenticatedUser(user);
-
-    if (isNewUser) {
-      setShowWizard(true);
-    } else {
-      // Reload actual user profile & database state from Supabase
-      const freshData = await reloadInitialData();
-      const isCompleted = Boolean(freshData?.onboardingCompleted || (freshData?.accounts && freshData.accounts.length > 0));
-      setShowWizard(!isCompleted);
-    }
+    await reloadInitialData();
   };
 
   // 1. Not Authenticated -> Show Auth Modal (Registration & Login)
@@ -90,19 +78,7 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // 2. Authenticated but Onboarding Pending -> Show Onboarding Setup Wizard
-  if (showWizard) {
-    return (
-      <OnboardingWizard
-        userData={authenticatedUser}
-        onCompleted={() => {
-          setShowWizard(false);
-        }}
-      />
-    );
-  }
-
-  // 3. Authenticated & Onboarding Complete -> Render Main Dashboard Layout
+  // 2. Authenticated -> Render Main Dashboard Layout Directly
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
@@ -169,7 +145,7 @@ const AppContent: React.FC = () => {
 
           {activeTab === 'settings' && (
             <SettingsPage
-              onReRunWizard={() => setShowWizard(true)}
+              onReRunWizard={() => {}}
               onLogout={handleLogout}
             />
           )}
