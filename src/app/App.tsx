@@ -83,7 +83,8 @@ const AppContent: React.FC = () => {
     } else {
       // Reload actual user profile & database state from Supabase
       const freshData = await reloadInitialData();
-      if (freshData && freshData.onboardingCompleted) {
+      const isCompleted = Boolean(freshData?.onboardingCompleted || (freshData?.accounts && freshData.accounts.length > 0));
+      if (isCompleted) {
         setShowWizard(false);
       } else {
         setShowWizard(true);

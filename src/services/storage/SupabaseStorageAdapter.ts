@@ -2,6 +2,8 @@ import type { StorageAdapter, AppStateData } from './StorageAdapter';
 import { LocalStorageAdapter } from './LocalStorageAdapter';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
+const isUuid = (id: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 export class SupabaseStorageAdapter implements StorageAdapter {
   private localAdapter = new LocalStorageAdapter();
 
@@ -88,8 +90,11 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     const rawName = profile?.full_name || user.user_metadata?.full_name || '';
     const computedName = rawName && rawName !== userEmail ? rawName : (userEmail.split('@')[0] || 'Utilisateur');
 
+    const hasAccountsInDb = accounts && accounts.length > 0;
+    const isOnboardingCompleted = (profile?.onboarding_completed ?? false) || hasAccountsInDb;
+
     return {
-      onboardingCompleted: profile?.onboarding_completed ?? false,
+      onboardingCompleted: isOnboardingCompleted,
       user: {
         fullName: computedName,
         email: userEmail,
@@ -186,49 +191,58 @@ export class SupabaseStorageAdapter implements StorageAdapter {
 
       // 2. Persist Accounts to Supabase
       if (state.accounts && state.accounts.length > 0) {
-        const accountsToUpsert = state.accounts.map(acc => ({
-          id: acc.id.startsWith('acc_') ? undefined : acc.id,
-          user_id: user.id,
-          name: acc.name,
-          type: acc.type,
-          balance: acc.balance,
-          currency: 'MAD',
-          bank_name: acc.bankName || acc.name,
-          updated_at: new Date().toISOString()
-        }));
-
-        await supabase.from('accounts').upsert(accountsToUpsert, { onConflict: 'id' });
+        for (const acc of state.accounts) {
+          const accPayload: any = {
+            user_id: user.id,
+            name: acc.name,
+            type: acc.type,
+            balance: acc.balance,
+            currency: 'MAD',
+            bank_name: acc.bankName || acc.name,
+            updated_at: new Date().toISOString()
+          };
+          if (isUuid(acc.id)) {
+            accPayload.id = acc.id;
+          }
+          await supabase.from('accounts').upsert(accPayload);
+        }
       }
 
       // 3. Persist Bills to Supabase
       if (state.bills && state.bills.length > 0) {
-        const billsToUpsert = state.bills.map(b => ({
-          id: b.id.startsWith('bill_') ? undefined : b.id,
-          user_id: user.id,
-          name: b.name,
-          amount: b.amount,
-          due_day: typeof b.dueDate === 'number' ? b.dueDate : 1,
-          is_paid: b.isPaidThisMonth,
-          category: b.categoryId || 'Fixe'
-        }));
-
-        await supabase.from('bills').upsert(billsToUpsert, { onConflict: 'id' });
+        for (const b of state.bills) {
+          const billPayload: any = {
+            user_id: user.id,
+            name: b.name,
+            amount: b.amount,
+            due_day: typeof b.dueDate === 'number' ? b.dueDate : 1,
+            is_paid: b.isPaidThisMonth,
+            category: b.categoryId || 'Fixe'
+          };
+          if (isUuid(b.id)) {
+            billPayload.id = b.id;
+          }
+          await supabase.from('bills').upsert(billPayload);
+        }
       }
 
       // 4. Persist Transactions to Supabase
       if (state.transactions && state.transactions.length > 0) {
-        const txsToUpsert = state.transactions.map(t => ({
-          id: t.id.startsWith('tx_') ? undefined : t.id,
-          user_id: user.id,
-          account_id: t.accountId.startsWith('acc_') ? null : t.accountId,
-          category: t.categoryId || 'general',
-          amount: t.amount,
-          type: t.type,
-          description: t.description,
-          date: t.transactionDate || new Date().toISOString().split('T')[0]
-        }));
-
-        await supabase.from('transactions').upsert(txsToUpsert, { onConflict: 'id' });
+        for (const t of state.transactions) {
+          const txPayload: any = {
+            user_id: user.id,
+            account_id: isUuid(t.accountId) ? t.accountId : null,
+            category: t.categoryId || 'general',
+            amount: t.amount,
+            type: t.type,
+            description: t.description,
+            date: t.transactionDate || new Date().toISOString().split('T')[0]
+          };
+          if (isUuid(t.id)) {
+            txPayload.id = t.id;
+          }
+          await supabase.from('transactions').upsert(txPayload);
+        }
       }
     } catch (err) {
       console.error('Error persisting state to Supabase:', err);
