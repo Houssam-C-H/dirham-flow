@@ -15,6 +15,7 @@ interface FinanceContextType {
   activeMode: SeasonalMode;
   
   saveAndSetState: (newState: AppStateData) => void;
+  reloadInitialData: () => Promise<AppStateData>;
   setCurrencyDisplay: (mode: CurrencyDisplay) => void;
   setLanguage: (lang: AppLanguage) => void;
   setTheme: (theme: AppTheme) => void;
@@ -57,6 +58,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const saveAndSetState = (newState: AppStateData) => {
     setState(newState);
     financeService.saveData(newState);
+  };
+
+  const reloadInitialData = async (): Promise<AppStateData> => {
+    setLoading(true);
+    const data = await financeService.loadInitialData();
+    setState(data);
+    setLoading(false);
+    return data;
   };
 
   if (loading || !state) {
@@ -269,6 +278,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         theme: state.preferences.theme,
         activeMode: state.seasonalConfig.activeMode,
         saveAndSetState,
+        reloadInitialData,
         setCurrencyDisplay,
         setLanguage,
         setTheme,

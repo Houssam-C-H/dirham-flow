@@ -27,7 +27,7 @@ import { AffordabilityAdvisorModal } from '../components/affordability/Affordabi
 import { StatementImporterModal } from '../components/importer/StatementImporterModal';
 
 const AppContent: React.FC = () => {
-  const { state, language, saveAndSetState } = useFinance();
+  const { state, language, saveAndSetState, reloadInitialData } = useFinance();
 
   const [authenticatedUser, setAuthenticatedUser] = useState<OnboardingUserData | null>(
     state.user && state.user.email ? state.user : null
@@ -70,24 +70,31 @@ const AppContent: React.FC = () => {
     });
   };
 
+  const handleAuthenticated = async (user: OnboardingUserData, isNewUser: boolean) => {
+    setAuthenticatedUser(user);
+
+    if (isNewUser) {
+      setShowWizard(true);
+      saveAndSetState({
+        ...state,
+        user,
+        onboardingCompleted: false
+      });
+    } else {
+      // Reload actual user profile & database state from Supabase
+      const freshData = await reloadInitialData();
+      if (freshData && freshData.onboardingCompleted) {
+        setShowWizard(false);
+      } else {
+        setShowWizard(true);
+      }
+    }
+  };
+
   // 1. Not Authenticated -> Show Auth Modal (Registration & Login)
   if (!authenticatedUser) {
     return (
-      <AuthModal
-        onAuthenticated={(user, isNewUser) => {
-          setAuthenticatedUser(user);
-          saveAndSetState({
-            ...state,
-            user,
-            onboardingCompleted: isNewUser ? false : state.onboardingCompleted
-          });
-          if (isNewUser || !state.onboardingCompleted) {
-            setShowWizard(true);
-          } else {
-            setShowWizard(false);
-          }
-        }}
-      />
+      <AuthModal onAuthenticated={handleAuthenticated} />
     );
   }
 
