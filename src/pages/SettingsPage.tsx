@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut } from 'lucide-react';
+import { User, Mail, Lock, Globe, Key, RefreshCw, LogOut, CheckCircle2, AlertCircle } from 'lucide-react';
 import { TRANSLATIONS } from '../utils/i18n';
 import type { AppLanguage, CurrencyDisplay } from '../types/user';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface SettingsPageProps {
   onReRunWizard: () => void;
@@ -14,32 +15,62 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.fr;
 
-  const [fullName, setFullName] = useState<string>(state.user?.fullName || 'Mehdi Benali');
-  const [email, setEmail] = useState<string>(state.user?.email || 'mehdi@dirhamflow.ma');
+  const email = state.user?.email || '';
+  const initialFullName = state.user?.fullName && state.user.fullName !== email
+    ? state.user.fullName
+    : email.split('@')[0] || 'Utilisateur';
+
+  const [fullName, setFullName] = useState<string>(initialFullName);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string>('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState<boolean>(false);
 
   // Password reset fields
-  const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmNewPassword, setConfirmNewPassword] = useState<string>('');
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState<string>('');
   const [passwordErrorMsg, setPasswordErrorMsg] = useState<string>('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState<boolean>(false);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveAndSetState({
-      ...state,
-      user: {
-        fullName,
-        email,
-        language
+    setIsUpdatingProfile(true);
+    setProfileSuccessMsg('');
+
+    try {
+      saveAndSetState({
+        ...state,
+        user: {
+          fullName: fullName.trim(),
+          email: email.trim(),
+          language
+        }
+      });
+
+      if (isSupabaseConfigured) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            full_name: fullName.trim(),
+            updated_at: new Date().toISOString()
+          });
+
+          await supabase.auth.updateUser({
+            data: { full_name: fullName.trim() }
+          });
+        }
       }
-    });
-    setProfileSuccessMsg('✓ Profil mis à jour avec succès!');
-    setTimeout(() => setProfileSuccessMsg(''), 3000);
+
+      setProfileSuccessMsg('✓ Profil mis à jour avec succès!');
+      setTimeout(() => setProfileSuccessMsg(''), 3000);
+    } catch (err: any) {
+      console.error('Update profile error:', err);
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordErrorMsg('');
     setPasswordSuccessMsg('');
@@ -54,12 +85,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
       return;
     }
 
-    // Success notification
-    setPasswordSuccessMsg('✓ Mot de passe modifié avec succès!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setTimeout(() => setPasswordSuccessMsg(''), 4000);
+    setIsUpdatingPassword(true);
+
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) {
+          setPasswordErrorMsg(error.message);
+          setIsUpdatingPassword(false);
+          return;
+        }
+      }
+
+      setPasswordSuccessMsg('✓ Mot de passe modifié avec succès!');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setTimeout(() => setPasswordSuccessMsg(''), 4000);
+    } catch (err: any) {
+      setPasswordErrorMsg(err?.message || 'Erreur lors du changement de mot de passe.');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   return (
@@ -103,8 +152,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </h3>
 
         {profileSuccessMsg && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600 }}>
-            {profileSuccessMsg}
+          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={16} />
+            <span>{profileSuccessMsg}</span>
           </div>
         )}
 
@@ -117,6 +167,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
                 <input
                   type="text"
                   required
+                  placeholder="Houssam"
                   className="form-input"
                   style={{ paddingLeft: '2.4rem' }}
                   value={fullName}
@@ -132,17 +183,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
                 <input
                   type="email"
                   required
+                  readOnly
                   className="form-input"
-                  style={{ paddingLeft: '2.4rem' }}
+                  style={{ paddingLeft: '2.4rem', opacity: 0.8 }}
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
                 />
               </div>
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary btn-sm">
-            Enregistrer les modifications
+          <button type="submit" className="btn btn-primary btn-sm" disabled={isUpdatingProfile} style={{ fontWeight: 700 }}>
+            {isUpdatingProfile ? 'Enregistrement...' : 'Enregistrer les modifications'}
           </button>
         </form>
       </div>
@@ -190,70 +241,56 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onReRunWizard, onLog
         </h3>
 
         {passwordSuccessMsg && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600 }}>
-            {passwordSuccessMsg}
+          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={16} />
+            <span>{passwordSuccessMsg}</span>
           </div>
         )}
 
         {passwordErrorMsg && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600 }}>
-            {passwordErrorMsg}
+          <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={16} />
+            <span>{passwordErrorMsg}</span>
           </div>
         )}
 
         <form onSubmit={handleResetPassword}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Mot de passe actuel</label>
+              <label className="form-label">Nouveau mot de passe</label>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="password"
                   required
+                  placeholder="Au moins 6 caractères"
                   className="form-input"
                   style={{ paddingLeft: '2.4rem' }}
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
                 />
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Nouveau mot de passe</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Au moins 6 caractères"
-                    className="form-input"
-                    style={{ paddingLeft: '2.4rem' }}
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Confirmer le nouveau mot de passe</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="password"
-                    required
-                    className="form-input"
-                    style={{ paddingLeft: '2.4rem' }}
-                    value={confirmNewPassword}
-                    onChange={e => setConfirmNewPassword(e.target.value)}
-                  />
-                </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Confirmer le nouveau mot de passe</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="password"
+                  required
+                  placeholder="Au moins 6 caractères"
+                  className="form-input"
+                  style={{ paddingLeft: '2.4rem' }}
+                  value={confirmNewPassword}
+                  onChange={e => setConfirmNewPassword(e.target.value)}
+                />
               </div>
             </div>
           </div>
 
-          <button type="submit" className="btn btn-accent btn-sm">
-            Changer le Mot de Passe
+          <button type="submit" className="btn btn-accent btn-sm" disabled={isUpdatingPassword} style={{ fontWeight: 700 }}>
+            {isUpdatingPassword ? 'Changement en cours...' : 'Changer le Mot de Passe'}
           </button>
         </form>
       </div>
