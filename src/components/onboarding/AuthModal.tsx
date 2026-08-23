@@ -77,7 +77,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
           });
 
           if (error) {
-            setErrorMessage(error.message);
+            if (error.message.toLowerCase().includes('rate limit')) {
+              setErrorMessage('⚠️ Limite d\'envoi d\'emails atteinte sur Supabase (3 emails/heure en mode gratuit). Désactivez "Confirm email" dans le Supabase Dashboard -> Authentication -> Providers -> Email, ou réessayez dans 15 minutes.');
+            } else {
+              setErrorMessage(error.message);
+            }
             setIsLoading(false);
             return;
           }
@@ -98,7 +102,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
           });
 
           if (error) {
-            setErrorMessage('Email ou mot de passe incorrect.');
+            if (error.message.toLowerCase().includes('rate limit')) {
+              setErrorMessage('⚠️ Limite de tentatives atteinte. Veuillez patienter quelques minutes.');
+            } else {
+              setErrorMessage('Email ou mot de passe incorrect.');
+            }
             setIsLoading(false);
             return;
           }
@@ -293,9 +301,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
             marginBottom: '1.25rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            lineHeight: 1.4
           }}>
-            <AlertCircle size={16} />
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>{errorMessage}</span>
           </div>
         )}
