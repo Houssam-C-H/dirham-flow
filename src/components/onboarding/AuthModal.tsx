@@ -106,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
           setLanguage(lang);
           onAuthenticated(
             {
-              fullName: data.user?.user_metadata?.full_name || 'Utilisateur',
+              fullName: data.user?.user_metadata?.full_name || cleanEmail.split('@')[0],
               email: cleanEmail,
               language: lang
             },
@@ -173,18 +173,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickDemoLogin = () => {
-    setLanguage(lang);
-    onAuthenticated(
-      {
-        fullName: 'Houssam',
-        email: 'houssam@dirhamflow.ma',
-        language: lang
-      },
-      false
-    );
   };
 
   return (
@@ -374,23 +362,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onAuthenticated }) => {
           </button>
         </form>
 
-        <div style={{ margin: '1.25rem 0', textAlign: 'center', position: 'relative' }}>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)' }} />
-          <span style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#0F172A', padding: '0 8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            OU
-          </span>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          style={{ width: '100%', justifyContent: 'center', fontSize: '0.85rem' }}
-          onClick={handleQuickDemoLogin}
-        >
-          ⚡ Connexion Démo Rapide
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', marginTop: '1.25rem', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', marginTop: '1.5rem', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
           <ShieldCheck size={14} color="#10B981" /> {isSupabaseConfigured ? 'Secured by Supabase Cloud & PostgreSQL RLS' : 'Connexion sécurisée en dirhams marocains (DH)'}
         </div>
       </div>
