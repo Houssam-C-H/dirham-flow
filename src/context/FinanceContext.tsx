@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { AppStateData } from '../services/storage/StorageAdapter';
 import { FinanceService } from '../services/financeService';
 import type { Transaction } from '../types/transaction';
-import type { SalaryConfig, SeasonalMode, AffordabilityAssessment, StatementImportRow, SavingsGoal } from '../types/finance';
+import type { Account, SalaryConfig, SeasonalMode, AffordabilityAssessment, StatementImportRow, SavingsGoal } from '../types/finance';
 import type { CategoryBudget, CategoryGroup, Category } from '../types/budget';
 import type { CurrencyDisplay, AppLanguage, AppTheme } from '../types/user';
 
@@ -20,6 +20,8 @@ interface FinanceContextType {
   setTheme: (theme: AppTheme) => void;
   setActiveMode: (mode: SeasonalMode) => void;
   
+  updateAccount: (accountId: string, updatedData: Partial<Account>) => void;
+  deleteAccount: (accountId: string) => void;
   executeLinkedTransfer: (fromAccId: string, toAccId: string, amount: number, description: string) => void;
   addTransaction: (txData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'currency'>) => void;
   markBillPaid: (billId: string) => void;
@@ -104,6 +106,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       seasonalConfig: { ...state.seasonalConfig, activeMode: mode }
     };
     saveAndSetState(updated);
+  };
+
+  const updateAccount = (accountId: string, updatedData: Partial<Account>) => {
+    const updatedAccounts = state.accounts.map(acc =>
+      acc.id === accountId ? { ...acc, ...updatedData } : acc
+    );
+    saveAndSetState({ ...state, accounts: updatedAccounts });
+  };
+
+  const deleteAccount = (accountId: string) => {
+    const updatedAccounts = state.accounts.filter(acc => acc.id !== accountId);
+    saveAndSetState({ ...state, accounts: updatedAccounts });
   };
 
   const executeLinkedTransfer = (fromAccId: string, toAccId: string, amount: number, description: string) => {
@@ -285,6 +299,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setLanguage,
         setTheme,
         setActiveMode,
+        updateAccount,
+        deleteAccount,
         executeLinkedTransfer,
         addTransaction,
         markBillPaid,
