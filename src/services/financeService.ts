@@ -48,8 +48,9 @@ export class FinanceService {
 
     if (!fromAcc || !toAcc) return state;
 
-    const transferId = `tr_${Date.now()}`;
-    const txId = `tx_tr_${Date.now()}`;
+    // Collision-safe IDs: timestamp + random suffix handles rapid sequential inserts
+    const transferId = `tr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const txId = `tx_tr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
     // Update account balances
     const updatedAccounts = state.accounts.map(acc => {
@@ -100,7 +101,8 @@ export class FinanceService {
    * Adds an income or expense transaction, updating target account balance.
    */
   addTransaction(state: AppStateData, txData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'currency'>): AppStateData {
-    const newId = `tx_${Date.now()}`;
+    // Collision-safe ID: timestamp + random suffix handles rapid batch imports
+    const newId = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const newTx: Transaction = {
       ...txData,
       id: newId,
@@ -159,7 +161,35 @@ export class FinanceService {
   }
 
   /**
+   * Adds a deposit to a savings goal and deducts the amount from the source account.
+   * Moved here from FinanceContext so business logic stays in the service layer.
+   */
+  addSavingsDeposit(
+    state: AppStateData,
+    goalId: string,
+    amount: number,
+    sourceAccountId: string
+  ): AppStateData {
+    const goal = state.goals.find(g => g.id === goalId);
+    if (!goal) return state;
+
+    const newCurrent = goal.currentAmount + amount;
+    const updatedGoals = state.goals.map(g =>
+      g.id === goalId
+        ? { ...g, currentAmount: newCurrent, isCompleted: newCurrent >= g.targetAmount }
+        : g
+    );
+
+    const updatedAccounts = state.accounts.map(acc =>
+      acc.id === sourceAccountId ? { ...acc, balance: acc.balance - amount } : acc
+    );
+
+    return { ...state, goals: updatedGoals, accounts: updatedAccounts };
+  }
+
+  /**
    * Evaluates affordability of an item using the 4-tier decision engine.
+   * Uses preferences.cashSafetyBuffer as the single source of truth.
    */
   evaluateAffordabilityForItem(state: AppStateData, itemName: string, price: number): AffordabilityAssessment {
     const unpaidBills = state.bills.filter(b => !b.isPaidThisMonth);

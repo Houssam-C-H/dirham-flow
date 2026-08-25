@@ -8,7 +8,8 @@ interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenAffordability: () => void;
-  onOpenAddTransaction?: () => void;
+  /** Opens the Add Transaction modal pre-selected on the given type. */
+  onOpenAddTransaction?: (type?: 'expense' | 'income') => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -82,14 +83,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
           <button
             className="btn btn-primary btn-sm"
-            onClick={onOpenAddTransaction}
+            onClick={() => onOpenAddTransaction?.('expense')}
             style={{ flex: 1, fontWeight: 700, padding: '0.6rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center' }}
           >
             <ArrowDownRight size={14} /> + Dépense
           </button>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={onOpenAddTransaction}
+            onClick={() => onOpenAddTransaction?.('income')}
             style={{ flex: 1, fontWeight: 700, padding: '0.6rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center' }}
           >
             <ArrowUpRight size={14} color="#10B981" /> + Revenu

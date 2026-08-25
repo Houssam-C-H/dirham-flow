@@ -35,6 +35,7 @@ const AppContent: React.FC = () => {
 
   // Modal States
   const [isAddTxOpen, setIsAddTxOpen] = useState<boolean>(false);
+  const [addTxDefaultType, setAddTxDefaultType] = useState<'expense' | 'income'>('expense');
   const [isTransferOpen, setIsTransferOpen] = useState<boolean>(false);
   const [isAffordabilityOpen, setIsAffordabilityOpen] = useState<boolean>(false);
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
@@ -94,7 +95,10 @@ const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAffordability={() => setIsAffordabilityOpen(true)}
-        onOpenAddTransaction={() => setIsAddTxOpen(true)}
+        onOpenAddTransaction={(type = 'expense') => {
+          setAddTxDefaultType(type);
+          setIsAddTxOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -107,7 +111,10 @@ const AppContent: React.FC = () => {
           padding: '2rem'
         }}>
           {activeTab === 'dashboard' && (
-            <DashboardPage onOpenAddTransaction={() => setIsAddTxOpen(true)} />
+            <DashboardPage onOpenAddTransaction={(type = 'expense') => {
+              setAddTxDefaultType(type);
+              setIsAddTxOpen(true);
+            }} />
           )}
 
           {activeTab === 'salary' && (
@@ -176,7 +183,7 @@ const AppContent: React.FC = () => {
       </div>
 
       {/* Global Modals */}
-      <AddTransactionModal isOpen={isAddTxOpen} onClose={() => setIsAddTxOpen(false)} />
+      <AddTransactionModal isOpen={isAddTxOpen} onClose={() => setIsAddTxOpen(false)} defaultType={addTxDefaultType} />
       <AccountTransferModal isOpen={isTransferOpen} onClose={() => setIsTransferOpen(false)} />
       <AffordabilityAdvisorModal isOpen={isAffordabilityOpen} onClose={() => setIsAffordabilityOpen(false)} />
       <StatementImporterModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />

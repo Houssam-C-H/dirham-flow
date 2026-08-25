@@ -145,7 +145,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateSalaryConfig = (config: SalaryConfig) => {
-    saveAndSetState({ ...state, salaryConfig: config });
+    // Mirror cashSafetyBuffer into preferences so both stores stay in sync.
+    saveAndSetState({
+      ...state,
+      salaryConfig: config,
+      preferences: { ...state.preferences, cashSafetyBuffer: config.cashSafetyBuffer }
+    });
   };
 
   const updateSafetyBuffer = (bufferAmount: number) => {
@@ -157,16 +162,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addSavingsDeposit = (goalId: string, amount: number, sourceAccountId: string) => {
-    const goal = state.goals.find(g => g.id === goalId);
-    if (!goal) return;
-
-    const newCurrent = goal.currentAmount + amount;
-    const updatedGoals = state.goals.map(g => g.id === goalId ? { ...g, currentAmount: newCurrent, isCompleted: newCurrent >= g.targetAmount } : g);
-
-    // Deduct from source account
-    const updatedAccounts = state.accounts.map(acc => acc.id === sourceAccountId ? { ...acc, balance: acc.balance - amount } : acc);
-
-    saveAndSetState({ ...state, goals: updatedGoals, accounts: updatedAccounts });
+    // Delegate to service layer — business logic does not belong in the Context.
+    const newState = financeService.addSavingsDeposit(state, goalId, amount, sourceAccountId);
+    saveAndSetState(newState);
   };
 
   const updateSavingsGoal = (goalId: string, updatedGoalData: Partial<SavingsGoal>) => {

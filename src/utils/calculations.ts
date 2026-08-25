@@ -31,9 +31,13 @@ export function calculateDailyBudget(
   payDay: number = 25
 ): { dailyBudget: number; daysLeft: number } {
   const daysLeft = getDaysUntilPayday(payDay);
+  // Explicit guard: if payday is today (daysLeft clamped to 1 by getDaysUntilPayday),
+  // treat the full remaining salary as today's budget rather than dividing by zero.
+  if (daysLeft <= 0) return { dailyBudget: remainingSalary, daysLeft: 1 };
   const dailyBudget = Math.max(0, Math.round(remainingSalary / daysLeft));
   return { dailyBudget, daysLeft };
 }
+
 
 /**
  * Advanced 4-Tier Affordability Decision Engine

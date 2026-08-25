@@ -7,12 +7,19 @@ import type { TransactionType } from '../../types/transaction';
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Pre-selects the transaction type tab when the modal opens. */
+  defaultType?: 'expense' | 'income';
 }
 
-export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClose }) => {
+export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen, onClose, defaultType }) => {
   const { state, addTransaction } = useFinance();
 
-  const [type, setType] = useState<TransactionType>('expense');
+  const [type, setType] = useState<TransactionType>(defaultType ?? 'expense');
+
+  // Sync the type whenever the modal opens with a different defaultType
+  React.useEffect(() => {
+    if (isOpen) setType(defaultType ?? 'expense');
+  }, [isOpen, defaultType]);
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [accountId, setAccountId] = useState<string>(state.accounts[0]?.id || '');
