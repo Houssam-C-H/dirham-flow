@@ -69,11 +69,14 @@ export const NetWorthCard: React.FC = () => {
       <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '1.25rem 0' }} />
 
       {/* Account Breakdown Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '1rem'
-      }}>
+      <div
+        className="networth-breakdown"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '1rem'
+        }}
+      >
         {/* Bank */}
         <div style={{
           background: 'rgba(255,255,255,0.03)',

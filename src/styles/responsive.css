@@ -1,0 +1,410 @@
+/* ================================================================
+ * DirhamFlow (فلوسي) — Mobile-First Responsive Styles
+ * Breakpoints:
+ *   Mobile  : ≤ 640px   → off-canvas sidebar + bottom nav
+ *   Tablet  : 641–1024px → icon-only sidebar (72px)
+ *   Desktop : > 1024px  → full sidebar (unchanged)
+ * ================================================================ */
+
+:root {
+  --sidebar-width: 270px;
+  --sidebar-collapsed-width: 72px;
+  --bottom-nav-height: 64px;
+  --mobile-header-height: 56px;
+}
+
+/* ----------------------------------------------------------------
+   APP SHELL
+   ---------------------------------------------------------------- */
+.app-shell {
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+  background: var(--bg-main);
+}
+
+.app-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ----------------------------------------------------------------
+   SIDEBAR — base (all sizes)
+   ---------------------------------------------------------------- */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  z-index: 100;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ----------------------------------------------------------------
+   Elements hidden/shown at breakpoints
+   ---------------------------------------------------------------- */
+.mobile-header   { display: none; }
+.bottom-nav      { display: none; }
+.sidebar-backdrop { display: none; }
+.sidebar-close-btn { display: none; }
+
+/* ================================================================
+   TABLET  641px – 1024px
+   Sidebar collapses to 72px icon strip
+   ================================================================ */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .sidebar {
+    width: var(--sidebar-collapsed-width) !important;
+    min-width: var(--sidebar-collapsed-width) !important;
+    overflow: hidden;
+  }
+
+  .sidebar-label,
+  .sidebar-brand-text,
+  .sidebar-quick-actions,
+  .sidebar-controls,
+  .sidebar-section-title,
+  .sidebar-affordability-btn {
+    display: none !important;
+  }
+
+  .sidebar-header {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .sidebar-nav-item {
+    justify-content: center !important;
+    padding: 0.8rem !important;
+    gap: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .sidebar-settings-btn {
+    justify-content: center !important;
+    padding: 0.8rem !important;
+    gap: 0 !important;
+  }
+
+  .sidebar-settings-section {
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+/* ================================================================
+   MOBILE  ≤ 640px
+   Sidebar → off-canvas overlay drawer + bottom nav bar
+   ================================================================ */
+@media (max-width: 640px) {
+  /* --- App shell stacks vertically --- */
+  .app-shell {
+    flex-direction: column;
+  }
+
+  /* --- Sidebar: fixed off-canvas drawer --- */
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100dvh !important;
+    width: 285px !important;
+    min-width: 285px !important;
+    z-index: 999;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.28s ease;
+  }
+
+  .sidebar--open {
+    transform: translateX(0) !important;
+    box-shadow: 8px 0 56px rgba(0, 0, 0, 0.85) !important;
+  }
+
+  /* RTL: drawer slides from right */
+  [dir="rtl"] .sidebar {
+    left: auto !important;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  [dir="rtl"] .sidebar--open {
+    transform: translateX(0) !important;
+    box-shadow: -8px 0 56px rgba(0, 0, 0, 0.85) !important;
+  }
+
+  /* Restore ALL labels inside the mobile drawer */
+  .sidebar-label {
+    display: inline !important;
+  }
+
+  .sidebar-brand-text,
+  .sidebar-quick-actions,
+  .sidebar-controls,
+  .sidebar-section-title,
+  .sidebar-affordability-btn {
+    display: flex !important;
+  }
+
+  .sidebar-nav-item {
+    justify-content: flex-start !important;
+    padding: 0.75rem 0.9rem !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Close button appears on mobile */
+  .sidebar-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+
+  /* --- Sidebar backdrop --- */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+    z-index: 998;
+    animation: fadeIn 0.2s ease;
+  }
+
+  /* --- Mobile sticky top header --- */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--mobile-header-height);
+    padding: 0 1rem;
+    background: rgba(11, 15, 25, 0.98);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .mobile-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+  }
+
+  .mobile-header-brand span {
+    color: var(--color-primary);
+    font-family: 'Tajawal', system-ui;
+  }
+
+  .mobile-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-main);
+    cursor: pointer;
+    padding: 8px;
+    transition: background 0.15s;
+  }
+
+  .mobile-hamburger:active {
+    background: rgba(16, 185, 129, 0.15);
+  }
+
+  /* --- Bottom navigation bar --- */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(11, 15, 25, 0.98);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-color);
+    z-index: 100;
+    align-items: stretch;
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.5rem 0.25rem 0.6rem;
+    position: relative;
+    transition: color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--color-primary);
+  }
+
+  .bottom-nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 3px;
+    background: var(--color-primary);
+    border-radius: 0 0 6px 6px;
+  }
+
+  /* --- Main content area adjustments --- */
+  .app-main-content main {
+    padding: 0.875rem !important;
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 0.875rem) !important;
+  }
+
+  /* Hide desktop footer on mobile */
+  .app-main-content footer {
+    display: none !important;
+  }
+
+  /* --- Glass cards: tighter padding --- */
+  .glass-card {
+    padding: 1rem !important;
+    border-radius: 14px !important;
+  }
+
+  /* --- Heading scale-down --- */
+  .app-main-content h2 {
+    font-size: 1.55rem !important;
+    line-height: 1.2;
+  }
+
+  .app-main-content h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* --- Large balance/number displays --- */
+  [style*="fontSize: '2.4rem'"],
+  [style*='fontSize: "2.4rem"'] { font-size: 1.65rem !important; }
+
+  [style*="fontSize: '2.2rem'"],
+  [style*='fontSize: "2.2rem"'] { font-size: 1.5rem !important; }
+
+  [style*="fontSize: '2rem'"],
+  [style*='fontSize: "2rem"']   { font-size: 1.35rem !important; }
+
+  [style*="fontSize: '1.8rem'"],
+  [style*='fontSize: "1.8rem"'] { font-size: 1.2rem !important; }
+
+  [style*="fontSize: '1.6rem'"],
+  [style*='fontSize: "1.6rem"'] { font-size: 1.15rem !important; }
+
+  /* --- Grid layouts → mobile single column --- */
+  /* Named class grids (most reliable) */
+  .accounts-grid          { grid-template-columns: 1fr !important; }
+  .goals-grid             { grid-template-columns: 1fr !important; }
+  .bills-calendar-grid    { grid-template-columns: 1fr !important; gap: 1rem !important; }
+  .salary-tab-layout      { gap: 1rem !important; }
+  .budget-categories-grid { grid-template-columns: 1fr !important; gap: 0.65rem !important; }
+  .portfolio-grid         { grid-template-columns: 1fr !important; }
+
+  /* NetWorth breakdown stays 2-col (numbers are short) */
+  .networth-breakdown {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.6rem !important;
+  }
+
+  /* Accounts grid header: stack on mobile */
+  .accounts-grid-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  .accounts-grid-header-actions {
+    width: 100%;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Generic style-attribute fallbacks for inline grids */
+  [style*="minmax(280px"],
+  [style*="minmax(300px"],
+  [style*="minmax(320px"],
+  [style*="minmax(340px"],
+  [style*="minmax(360px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  [style*="minmax(180px"],
+  [style*="minmax(200px"],
+  [style*="minmax(220px"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Salary daily budget pill: full-width on mobile */
+  [style*="minWidth: '220px'"],
+  [style*='minWidth: "220px"'] {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  /* --- Modals → bottom sheet slide-up --- */
+  .modal-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-content,
+  .modal-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 94vh !important;
+    overflow-y: auto !important;
+    padding: 1.25rem 1rem 2rem !important;
+  }
+
+  /* --- Tables → horizontal scroll container --- */
+  .app-main-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* --- Header rows with space-between → wrap --- */
+  .app-main-content [style*="justifyContent: 'space-between'"] {
+    flex-wrap: wrap !important;
+  }
+}

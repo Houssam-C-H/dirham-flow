@@ -112,7 +112,7 @@ export const AccountsGrid: React.FC<AccountsGridProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header & Total Card */}
       <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.95))' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="accounts-grid-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 700, textTransform: 'uppercase' }}>
               {language === 'ar_darija' ? 'الحسابات والنقدية — أين أموالي؟' : 'Comptes & Espèces — Où est mon argent ?'}
@@ -122,7 +122,7 @@ export const AccountsGrid: React.FC<AccountsGridProps> = ({
             </h2>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="accounts-grid-header-actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button className="btn btn-primary btn-sm" onClick={() => setIsAddAccOpen(true)} style={{ fontWeight: 700 }}>
               <Plus size={16} /> {language === 'ar_darija' ? 'إضافة حساب' : 'Ajouter un compte'}
             </button>
@@ -137,7 +137,7 @@ export const AccountsGrid: React.FC<AccountsGridProps> = ({
       </div>
 
       {/* Account Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+      <div className="accounts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
         {state.accounts.map(acc => {
           const isSelected = selectedAcc?.id === acc.id;
           const accTxs = state.transactions.filter(t => t.accountId === acc.id);

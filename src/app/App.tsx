@@ -40,6 +40,9 @@ const AppContent: React.FC = () => {
   const [isAffordabilityOpen, setIsAffordabilityOpen] = useState<boolean>(false);
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
 
+  // Mobile sidebar drawer state
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
   const isRtl = language === 'ar_darija';
 
   // Keep authenticatedUser synced with state.user changes
@@ -79,16 +82,11 @@ const AppContent: React.FC = () => {
     );
   }
 
-  // 2. Authenticated -> Render Main Dashboard Layout Directly
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'row',
-        background: 'var(--bg-main)'
-      }}
+      className="app-shell"
+      style={{ minHeight: '100vh', background: 'var(--bg-main)' }}
     >
       {/* Sidebar Navigation */}
       <Sidebar
@@ -99,10 +97,31 @@ const AppContent: React.FC = () => {
           setAddTxDefaultType(type);
           setIsAddTxOpen(true);
         }}
+        isMobileOpen={isSidebarOpen}
+        onMobileOpen={() => setIsSidebarOpen(true)}
+        onMobileClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="app-main-content">
+        {/* Mobile sticky top header */}
+        <header className="mobile-header">
+          <div className="mobile-header-brand">
+            <span style={{ fontSize: '1.4rem' }}>🇲🇦</span>
+            DirhamFlow <span>فلوسي</span>
+          </div>
+          <button
+            className="mobile-hamburger"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="Ouvrir le menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        </header>
         <main style={{
           flex: 1,
           maxWidth: '1280px',
@@ -118,7 +137,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === 'salary' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="salary-tab-layout" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <SalaryPlannerView />
               <BudgetOverview />
             </div>
@@ -136,7 +155,7 @@ const AppContent: React.FC = () => {
           )}
 
           {activeTab === 'bills_calendar' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            <div className="bills-calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
               <BillsManager />
               <FinancialCalendarTimeline />
             </div>
